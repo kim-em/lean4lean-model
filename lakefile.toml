@@ -12,7 +12,7 @@ rev = "v4.30.0"
 [[require]]
 name = "lean4lean"
 git = "https://github.com/digama0/lean4lean"
-rev = "master"
+rev = "7842f3878e9c4b107bf488114b6fc28067ed3ee5"
 
 [[lean_lib]]
 name = "Lean4LeanModel"

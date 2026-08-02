@@ -11,7 +11,7 @@ lake exe cache get   # mathlib oleans
 lake build
 ```
 
-Everything is pinned at Lean `v4.30.0`: mathlib `v4.30.0`, lean4lean `master`.
+Everything is pinned at Lean `v4.30.0`: mathlib `v4.30.0`, lean4lean `7842f38`.
 
 Note that importing lean4lean alongside mathlib requires lean4lean's stdlib prelude
 (`Lean4Lean/Std/Basic.lean`) to live in the `Lean4Lean` namespace rather than the root one --
@@ -21,5 +21,14 @@ That is the case on lean4lean master as of `7842f38`; consumers just need an `op
 ## Target
 
 `Lean4LeanModel/Consistency.lean` states the goal: consistency of the type theory formalized in
-`Lean4Lean.Theory`, assuming `ω` inaccessible cardinals -- the soundness theorem of *The Type
-Theory of Lean*. It is `sorry`ed pending the model construction.
+`Lean4Lean.Theory`, assuming `ω` inaccessible cardinals and initially restricting to declaration
+histories without axioms or inductive declarations. Primitive quotient declarations remain in
+scope. This is the first model theorem toward the soundness theorem of *The Type Theory of Lean*.
+It is `sorry`ed pending the model construction.
+
+Allowing Lean's standard axioms (`propext`, `Classical.choice`, and `Quot.sound`) additionally
+requires pinning the standard meanings of dependencies such as `Eq`, `Iff`, and `Nonempty`.
+Those are inductive declarations, whose abstract specification is still unfinished in lean4lean.
+General inductive declarations are excluded from the initial target because the upstream
+`VInductDecl.WF` and `VEnv.addInduct` specifications are still `sorry` and provide no information
+with which to construct their model.
