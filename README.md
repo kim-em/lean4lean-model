@@ -21,14 +21,14 @@ That is the case on lean4lean master as of `7842f38`; consumers just need an `op
 ## Target
 
 `Lean4LeanModel/Consistency.lean` states the goal: consistency of the type theory formalized in
-`Lean4Lean.Theory`, assuming `ω` inaccessible cardinals and initially restricting to declaration
-histories without axioms or inductive declarations. Primitive quotient declarations remain in
-scope. This is the first model theorem toward the soundness theorem of *The Type Theory of Lean*.
-It is `sorry`ed pending the model construction.
+`Lean4Lean.Theory`, assuming `ω` inaccessible cardinals and restricting initially to a standard
+declaration fragment. The fragment admits ordinary definitions, the canonical `Eq`, `Iff`, and
+`Nonempty` inductives, primitive quotients, and exactly Lean's three standard axioms (`propext`,
+`Classical.choice`, and `Quot.sound`). Standard names are reserved and each axiom checks that its
+canonical dependencies are already present, so a same-typed replacement cannot silently change
+their meanings. This is the first model theorem toward the soundness theorem of *The Type Theory
+of Lean*. It is `sorry`ed pending the model construction.
 
-Allowing Lean's standard axioms (`propext`, `Classical.choice`, and `Quot.sound`) additionally
-requires pinning the standard meanings of dependencies such as `Eq`, `Iff`, and `Nonempty`.
-Those are inductive declarations, whose abstract specification is still unfinished in lean4lean.
-General inductive declarations are excluded from the initial target because the upstream
-`VInductDecl.WF` and `VEnv.addInduct` specifications are still `sorry` and provide no information
-with which to construct their model.
+General inductive declarations remain out of scope because the upstream `VInductDecl.WF` and
+`VEnv.addInduct` specifications are still `sorry`. The standard inductives are fixed explicitly so
+their set-theoretic models can be handled as dedicated cases without first modeling all inductives.

@@ -1,61 +1,112 @@
 import Lean4Lean.Theory.Typing.Env
 
 /-!
-# Declaration policies
+# The standard declaration fragment
 
-The abstract `Lean4Lean.VEnv.WF` predicate permits arbitrary well-typed axioms, and its inductive
-declaration case is not yet specified. Soundness milestones therefore need an additional policy
-saying which declarations may occur in the history of an environment.
+`Lean4Lean.VEnv.WF` permits arbitrary well-typed axioms, so consistency requires a more precise
+description of the declaration histories in scope.  The fragment below admits ordinary
+definitions, opaque definitions, examples, and primitive quotients, together with the standard
+inductive declarations on which Lean's three standard axioms depend.
+
+The standard names are reserved: an ordinary definition cannot install a different `Eq`, `Iff`,
+or `Nonempty` with the expected type.  Each standard axiom is admitted only with its exact name and
+type, after its dependencies have been installed by the corresponding canonical declaration.
 -/
 
 namespace Lean4LeanModel
 
 open Lean4Lean
 
-/-- A well-formed environment with a declaration history accepted by `allowed`. -/
-def WFUnder (allowed : VDecl → Prop) (env : VEnv) : Prop :=
-  ∃ ds, VEnv.WF' ds env ∧ ∀ d ∈ ds, allowed d
+/-- Attach a name to the type of a Lean constant translated to `VExpr`. -/
+private def namedConstant (name : Name) (ci : VConstant) : VConstVal where
+  name := name
+  uvars := ci.uvars
+  type := ci.type
 
-/-- Forgetting the declaration policy leaves an ordinary well-formed environment. -/
-theorem WFUnder.wf {allowed : VDecl → Prop} {env : VEnv} :
-    WFUnder allowed env → VEnv.WF env
-  | ⟨ds, hds, _⟩ => ⟨ds, hds⟩
+def standardEq : VConstVal := namedConstant ``Eq vconst(type_of% @Eq)
+def standardEqRefl : VConstVal := namedConstant ``Eq.refl vconst(type_of% @Eq.refl)
+def standardIff : VConstVal := namedConstant ``Iff vconst(type_of% @Iff)
+def standardIffIntro : VConstVal := namedConstant ``Iff.intro vconst(type_of% @Iff.intro)
+def standardNonempty : VConstVal := namedConstant ``Nonempty vconst(type_of% @Nonempty)
+def standardNonemptyIntro : VConstVal :=
+  namedConstant ``Nonempty.intro vconst(type_of% @Nonempty.intro)
 
-/-- Extend a policy-compliant history by one policy-compliant declaration. -/
-theorem WFUnder.decl {allowed : VDecl → Prop} {env env' : VEnv} {d : VDecl}
-    (h : WFUnder allowed env) (hd : VDecl.WF env d env') (ha : allowed d) :
-    WFUnder allowed env' := by
-  obtain ⟨ds, hds, hall⟩ := h
-  refine ⟨d :: ds, .decl hd hds, ?_⟩
-  intro d' hd'
-  simp only [List.mem_cons] at hd'
-  rcases hd' with rfl | hd'
-  · exact ha
-  · exact hall d' hd'
+/-- The canonical declaration of propositional equality. -/
+def standardEqDecl : VInductDecl where
+  uvars := 1
+  nparams := 2
+  types := [{ toVConstVal := standardEq, ctors := [standardEqRefl] }]
 
-/-- Weakening a declaration policy preserves well-formedness under that policy. -/
-theorem WFUnder.mono {allowed allowed' : VDecl → Prop} {env : VEnv}
-    (h : WFUnder allowed env) (hle : ∀ d, allowed d → allowed' d) :
-    WFUnder allowed' env := by
-  obtain ⟨ds, hds, hall⟩ := h
-  exact ⟨ds, hds, fun d hd => hle d (hall d hd)⟩
+/-- The canonical declaration of logical equivalence. -/
+def standardIffDecl : VInductDecl where
+  uvars := 0
+  nparams := 2
+  types := [{ toVConstVal := standardIff, ctors := [standardIffIntro] }]
 
-/-- The declarations supported by the first model milestone. The exhaustive match is deliberate:
-new declaration forms upstream must be reviewed before entering the modeled fragment. Quotient
-declarations are included, but the `Quot.sound` axiom is not. -/
-def CoreDecl : VDecl → Prop
-  | .block _ => True
-  | .axiom _ => False
-  | .def _ => True
-  | .opaque _ => True
+/-- The canonical declaration of propositional nonemptiness. -/
+def standardNonemptyDecl : VInductDecl where
+  uvars := 1
+  nparams := 1
+  types := [{ toVConstVal := standardNonempty, ctors := [standardNonemptyIntro] }]
+
+def standardPropext : VConstVal := namedConstant ``propext vconst(type_of% @propext)
+def standardChoice : VConstVal :=
+  namedConstant ``Classical.choice vconst(type_of% @Classical.choice)
+def standardQuotSound : VConstVal := namedConstant ``Quot.sound vconst(type_of% @Quot.sound)
+
+/-- The names whose meanings are fixed by the standard prelude.  Reserving the generated recursor
+names as well as the type and constructor names prevents an earlier declaration from changing the
+meaning or computation behavior of a later standard inductive declaration. -/
+def StandardName (name : Name) : Prop :=
+  name = ``Eq ∨ name = ``Eq.refl ∨ name = ``Eq.rec ∨
+  name = ``Iff ∨ name = ``Iff.intro ∨ name = ``Iff.rec ∨
+  name = ``Nonempty ∨ name = ``Nonempty.intro ∨ name = ``Nonempty.rec ∨
+  name = ``Quot ∨ name = ``Quot.mk ∨ name = ``Quot.lift ∨ name = ``Quot.ind ∨
+  name = ``propext ∨ name = ``Classical.choice ∨ name = ``Quot.sound
+
+/-- The environment contains this exact named constant.  In a `StandardWF` history, reserved-name
+discipline ensures that such a constant came from its canonical standard declaration. -/
+def HasStandardConstant (env : VEnv) (ci : VConstVal) : Prop :=
+  env.constants ci.name = some ci.toVConstant
+
+/-- Exactly the three standard axioms, with the standard meanings of every constant used in their
+types checked in the environment in which the axiom is introduced. -/
+def StandardAxiom (env : VEnv) (ci : VConstVal) : Prop :=
+  (ci = standardPropext ∧
+      HasStandardConstant env standardEq ∧ HasStandardConstant env standardIff) ∨
+  (ci = standardChoice ∧ HasStandardConstant env standardNonempty) ∨
+  (ci = standardQuotSound ∧
+      HasStandardConstant env standardEq ∧
+      HasStandardConstant env (namedConstant ``Quot quotConst) ∧
+      HasStandardConstant env (namedConstant ``Quot.mk quotMkConst))
+
+/-- The three inductive declarations whose meanings are required by the standard axioms. -/
+def StandardInductive (decl : VInductDecl) : Prop :=
+  decl = standardEqDecl ∨ decl = standardIffDecl ∨ decl = standardNonemptyDecl
+
+/-- Declarations supported by the standard fragment.  The exhaustive match is deliberate: a new
+upstream declaration form must be reviewed before it enters the modeled fragment. -/
+def StandardDecl (env : VEnv) : VDecl → Prop
+  | .block _ => False
+  | .axiom ci => StandardAxiom env ci
+  | .def ci => ¬ StandardName ci.name
+  | .opaque ci => ¬ StandardName ci.name
   | .example _ => True
   | .quot => True
-  | .induct _ => False
+  | .induct decl => StandardInductive decl
 
-/-- A well-formed environment in the axiom-free, inductive-free core fragment. -/
-abbrev CoreWF (env : VEnv) : Prop := WFUnder CoreDecl env
+/-- An environment constructed entirely from declarations in the standard fragment.  Making the
+policy depend on the preceding environment lets an axiom case carry evidence that its standard
+dependencies have already been installed. -/
+inductive StandardWF : VEnv → Prop where
+  | empty : StandardWF .empty
+  | decl : StandardWF env → VDecl.WF env d env' → StandardDecl env d → StandardWF env'
 
-theorem core_empty : CoreWF .empty := by
-  exact ⟨[], .empty, by simp⟩
+/-- Forgetting the standard-declaration policy leaves ordinary environment well-formedness. -/
+theorem StandardWF.wf : StandardWF env → env.WF
+  | .empty => ⟨[], .empty⟩
+  | .decl h hd _ =>
+    let ⟨ds, hds⟩ := h.wf
+    ⟨_ :: ds, .decl hd hds⟩
 
 end Lean4LeanModel

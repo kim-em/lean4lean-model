@@ -5,18 +5,19 @@ import Mathlib.SetTheory.Cardinal.Regular
 /-!
 # The target theorem
 
-Consistency of the axiom-free, inductive-free core of Lean's type theory, relative to the existence
-of `ω` inaccessible cardinals -- the first model theorem toward the soundness theorem of *The
-Type Theory of Lean*.
+Consistency of Lean's standard fragment, relative to the existence of `ω` inaccessible cardinals --
+the first model theorem toward the soundness theorem of *The Type Theory of Lean*.
 
 The type theory itself is the one formalized in `Lean4Lean.Theory`: `VExpr` is the term syntax,
-`VEnv` the declaration environment, `CoreWF` says the environment was built by well-founded
-declarations (`VDecl.WF`) without axioms or inductive declarations, and `VEnv.HasType` is the
-typing judgment. Primitive quotient declarations remain in scope.
+`VEnv` the declaration environment, `StandardWF` says the environment was built by well-founded
+declarations (`VDecl.WF`) admitting the canonical `Eq`, `Iff`, and `Nonempty` inductives and Lean's
+three standard axioms, and `VEnv.HasType` is the typing judgment. Primitive quotient declarations
+remain in scope.
 
 The model construction is what fills the remaining `sorry` in the consistency theorem.
 General inductive declarations await the completion of `VInductDecl.WF` and `VEnv.addInduct`
-upstream in lean4lean; until then their environment-extension case provides no usable information.
+upstream in lean4lean. The standard fragment fixes the exact declarations needed by the axioms so
+their special cases can be modeled directly.
 -/
 
 namespace Lean4LeanModel
@@ -68,16 +69,13 @@ def OmegaInaccessibles : Prop :=
   ∃ κ : ℕ → Cardinal.{u}, StrictMono κ ∧ ∀ n, (κ n).IsInaccessible
 
 /--
-**Consistency of the core fragment.** Assuming `ω` inaccessible cardinals, no well-formed
-environment without axiom or inductive declarations proves `∀ (p : Prop), p` -- in any number
-`U` of universe parameters, in the empty local context. Primitive quotient declarations are
-included: they add the quotient constants and computation rule, but not `Quot.sound`.
-
-Extending this to Lean's standard axioms (`propext`, `Classical.choice`, and `Quot.sound`) also
-requires pinning the standard meanings of the constants occurring in their types, including
-`Eq`, `Iff`, and `Nonempty`. That awaits lean4lean's specification of inductive declarations.
+**Consistency of the standard fragment.** Assuming `ω` inaccessible cardinals, no standard
+well-formed environment proves `∀ (p : Prop), p` -- in any number `U` of universe parameters, in
+the empty local context. The fragment includes the canonical `Eq`, `Iff`, and `Nonempty`
+inductives, primitive quotients, and exactly Lean's three standard axioms: `propext`,
+`Classical.choice`, and `Quot.sound`.
 -/
-theorem consistency (_ : OmegaInaccessibles.{u}) {env : VEnv} (_ : CoreWF env) (U : Nat) :
+theorem consistency (_ : OmegaInaccessibles.{u}) {env : VEnv} (_ : StandardWF env) (U : Nat) :
     ¬ ∃ e, env.HasType U [] e VExpr.false := by
   sorry
 
