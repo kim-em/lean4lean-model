@@ -1,18 +1,19 @@
 name = "lean4lean-model"
 defaultTargets = ["Lean4LeanModel"]
 
-# Mathlib is required first on purpose: lake resolves a shared transitive
-# dependency (batteries) to the first pin it encounters, and mathlib's pin is
-# the more constrained of the two.
-[[require]]
-name = "mathlib"
-git = "https://github.com/leanprover-community/mathlib4"
-rev = "v4.30.0"
-
 [[require]]
 name = "lean4lean"
 git = "https://github.com/digama0/lean4lean"
 rev = "master"
+
+# Mathlib is required last on purpose: where two dependencies pin a shared transitive dependency
+# (batteries) differently, the later require wins, and mathlib's pin is the one that matters --
+# its olean cache is keyed on its dependency sources, so any other batteries revision makes
+# `lake exe cache get` compute wrong hashes and fall back to a from-source mathlib build.
+[[require]]
+name = "mathlib"
+git = "https://github.com/leanprover-community/mathlib4"
+rev = "v4.32.2"
 
 [[lean_lib]]
 name = "Lean4LeanModel"
