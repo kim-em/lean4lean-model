@@ -56,8 +56,8 @@ theorem interp_liftN {κ : ℕ → Cardinal.{u}} {env : VEnv} {assignment : Assi
   | const c ls =>
     simp only [VExpr.liftN, interp_const]
     have hc := safeTermClass_weakN (e := .const c ls) henv W hctx
-    simpa only [VExpr.liftN] using congrArg
-      (fun q => if q = 0 then bullet else assignment.constVal c (ls.map (VLevel.eval L))) hc
+    simp only [VExpr.liftN] at hc
+    rw [hc]
   | app f a ihf iha =>
     simp only [VExpr.liftN, interp_app]
     rw [safeTermClass_weakN henv W hctx, ihf W hctx hval, iha W hctx hval]
@@ -165,7 +165,7 @@ theorem ValInstN.bvar {κ : ℕ → Cardinal.{u}} {env : VEnv} {assignment : Ass
     | zero => simp [VExpr.inst, VExpr.instVar]
     | succ i =>
       rw [VExpr.inst, VExpr.instVar_succ, interp_lift henv hΓ x]
-      simpa only [interp_bvar, List.getD_cons_succ] using ih hΓ₁.1 hΓ.1 i
+      simpa only [interp_bvar, List.getD_cons_succ, VExpr.inst] using ih hΓ₁.1 hΓ.1 i
 
 /-- Interpretation commutes with substitution on well-typed raw expressions. -/
 theorem interp_instN {κ : ℕ → Cardinal.{u}} {env : VEnv} {assignment : Assignment.{u}}
@@ -184,8 +184,8 @@ theorem interp_instN {κ : ℕ → Cardinal.{u}} {env : VEnv} {assignment : Assi
   | const c ls =>
     simp only [VExpr.inst, interp_const]
     have hc := safeTermClass_instN henv hΓ₁ hΓ W h₀ he rfl
-    simpa only [VExpr.inst] using congrArg
-      (fun q => if q = 0 then bullet else assignment.constVal c (ls.map (VLevel.eval L))) hc
+    simp only [VExpr.inst] at hc
+    rw [hc]
   | app f a ihf iha =>
     obtain ⟨A, B, hf, ha⟩ := he.app_inv henv hΓ₁
     simp only [VExpr.inst, interp_app]
@@ -250,8 +250,8 @@ theorem safeTermClass_instL {env : VEnv} {L : List Nat} {ls : List VLevel}
   have hΓs : OnCtx Γ (env.IsType ns.length) := by simpa [hlen] using hΓ
   obtain ⟨A, heA⟩ := he
   obtain ⟨u, hA⟩ := heA.isType henv hΓ
-  have heAs : env.HasType ns.length Γ e A := by simpa [hlen] using heA
-  have hAs : env.HasType ns.length Γ A (.sort u) := by simpa [hlen] using hA
+  have heAs : env.HasType ns.length Γ e A := by rw [hlen]; exact heA
+  have hAs : env.HasType ns.length Γ A (.sort u) := by rw [hlen]; exact hA
   rw [safeTermClass_eq hΓi]
   rw [safeTermClass_eq hΓs]
   unfold termClass
@@ -272,7 +272,7 @@ theorem safeTypeClass_instL {env : VEnv} {L : List Nat} {ls : List VLevel}
   have hlen : ns.length = ls.length := by simp [ns]
   have hΓs : OnCtx Γ (env.IsType ns.length) := by simpa [hlen] using hΓ
   obtain ⟨u, hA⟩ := hAty
-  have hAs : env.HasType ns.length Γ A (.sort u) := by simpa [hlen] using hA
+  have hAs : env.HasType ns.length Γ A (.sort u) := by rw [hlen]; exact hA
   rw [safeTypeClass_eq hΓi]
   rw [safeTypeClass_eq hΓs]
   unfold typeClass
@@ -298,9 +298,8 @@ theorem interp_instL {κ : ℕ → Cardinal.{u}} {env : VEnv} {assignment : Assi
         (us.map (VLevel.inst ls)).map (VLevel.eval L) := by
       simp [VLevel.eval_inst]
     rw [hus]
-    simpa only [VExpr.instL] using congrArg
-      (fun q => if q = 0 then bullet
-        else assignment.constVal c ((us.map (VLevel.inst ls)).map (VLevel.eval L))) hc
+    simp only [VExpr.instL] at hc
+    rw [hc]
   | app f a ihf iha =>
     obtain ⟨A, B, hf, ha⟩ := he.app_inv henv hΓ
     simp only [VExpr.instL, interp_app]
