@@ -199,13 +199,21 @@ theorem model_addQuot_sem {κ : ℕ → Cardinal.{u}} {env env' : VEnv}
       simpa [assignment₄] using meanings.quotInd_valid ns hns
     rcases addConst_lookup_cases h₃ hc with hnew | hc
     · rcases hnew with ⟨rfl, rfl⟩
-      simpa [assignment₄, assignment₃] using meanings.quotLift_valid ns hns
+      simpa [assignment₄, assignment₃, assignment₂, assignment₁, Assignment.set_self,
+        Assignment.set_other _ _ (by decide : (`Quot.lift : Name) ≠ `Quot.ind)] using
+        meanings.quotLift_valid ns hns
     rcases addConst_lookup_cases h₂ hc with hnew | hc
     · rcases hnew with ⟨rfl, rfl⟩
-      simpa [assignment₄, assignment₃, assignment₂] using meanings.quotMk_valid ns hns
+      simpa [assignment₄, assignment₃, assignment₂, assignment₁, Assignment.set_self,
+        Assignment.set_other _ _ (by decide : (`Quot.mk : Name) ≠ `Quot.ind),
+        Assignment.set_other _ _ (by decide : (`Quot.mk : Name) ≠ `Quot.lift)] using
+        meanings.quotMk_valid ns hns
     rcases addConst_lookup_cases h₁ hc with hnew | hc
     · rcases hnew with ⟨rfl, rfl⟩
-      simpa [assignment₄, assignment₃, assignment₂, assignment₁] using
+      simpa [assignment₄, assignment₃, assignment₂, assignment₁, Assignment.set_self,
+        Assignment.set_other _ _ (by decide : (`Quot : Name) ≠ `Quot.ind),
+        Assignment.set_other _ _ (by decide : (`Quot : Name) ≠ `Quot.lift),
+        Assignment.set_other _ _ (by decide : (`Quot : Name) ≠ `Quot.mk)] using
         meanings.quot_valid ns hns
     · have hOld := M.assignmentWF.const_mem hc hns
       obtain ⟨lvl, hci⟩ := M.envOrdered.constWF hc

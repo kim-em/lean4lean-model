@@ -258,7 +258,7 @@ theorem quotMkConstValue_valid {κ : ℕ → Cardinal.{u}} {env : VEnv}
     exact VEnv.HasType.const hQuotDecl (by decide) (by decide)
   have hqcTy : env.HasType 1 Γa (quotConst.type.instL [.param 0])
       (.sort lqc) := by
-    simpa [quotConst] using (show env.HasType 1 Γa
+    simpa [quotConst, VExpr.instL, VLevel.inst] using (show env.HasType 1 Γa
       (.forallE (.sort (.param 0))
         (.forallE (.forallE (.bvar 0) (.forallE (.bvar 1) (.sort .zero)))
           (.sort (.param 0))))

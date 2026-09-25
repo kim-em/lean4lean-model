@@ -75,7 +75,7 @@ theorem quotIndConstValue_valid {κ : ℕ → Cardinal.{u}} {env : VEnv}
   have hcQcR : safeTermClass env Γr [n] qc ≠ 0 := by
     apply safeTermClass_ne_zero_of_hasType (l := lqc) henv hΓr
     · exact VEnv.HasType.const (U := 1) hQuotDecl (by decide) (by decide)
-    · simpa [qc, quotConst] using (show env.HasType 1 Γr
+    · simpa [qc, quotConst, VExpr.instL, VLevel.inst] using (show env.HasType 1 Γr
         (.forallE (.sort (.param 0))
           (.forallE (.forallE (.bvar 0) (.forallE (.bvar 1) (.sort .zero)))
             (.sort (.param 0)))) (.sort lqc) from by
@@ -153,7 +153,7 @@ theorem quotIndConstValue_valid {κ : ℕ → Cardinal.{u}} {env : VEnv}
   have hcQcC : safeTermClass env Γc [n] qc ≠ 0 := by
     apply safeTermClass_ne_zero_of_hasType (l := lqc) henv hΓc
     · exact VEnv.HasType.const (U := 1) hQuotDecl (by decide) (by decide)
-    · simpa [qc, quotConst] using (show env.HasType 1 Γc
+    · simpa [qc, quotConst, VExpr.instL, VLevel.inst] using (show env.HasType 1 Γc
         (.forallE (.sort (.param 0))
           (.forallE (.forallE (.bvar 0) (.forallE (.bvar 1) (.sort .zero)))
             (.sort (.param 0)))) (.sort lqc) from by
@@ -245,7 +245,7 @@ theorem quotIndConstValue_valid {κ : ℕ → Cardinal.{u}} {env : VEnv}
   have hmkc : env.HasType 1 Γa mkc quotMkConst.type :=
     VEnv.HasType.const (U := 1) hMkDecl (by decide) (by decide)
   have hmkcTy : env.HasType 1 Γa quotMkConst.type (.sort lmkc) := by
-    simpa [quotMkConst] using (show env.HasType 1 Γa quotMkConst.type
+    simpa [quotMkConst, VExpr.instL, VLevel.inst] using (show env.HasType 1 Γa quotMkConst.type
         (.sort lmkc) from by
           simp only [quotMkConst, lmkc, lmkA, lmkR, lrel]
           apply VEnv.HasType.forallE

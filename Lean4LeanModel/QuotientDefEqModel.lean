@@ -280,7 +280,7 @@ theorem quotDefEq_valid {κ : ℕ → Cardinal.{u}} {env : VEnv}
   have hEqc : env.HasType 2 Γrh eqc (eqConst.type.instL [.param 1]) :=
     VEnv.HasType.const (U := 2) hEqDecl (by decide) (by decide)
   have hEqcTy : env.HasType 2 Γrh (eqConst.type.instL [.param 1]) (.sort lEqc) := by
-    simpa [eqConst] using (show env.HasType 2 Γrh
+    simpa [eqConst, VExpr.instL, VLevel.inst] using (show env.HasType 2 Γrh
       (.forallE (.sort (.param 1))
         (.forallE (.bvar 0) (.forallE (.bvar 1) (.sort .zero))))
       (.sort lEqc) from by
@@ -418,7 +418,9 @@ theorem quotDefEq_valid {κ : ℕ → Cardinal.{u}} {env : VEnv}
     exact hcLiftBodyB
   have hliftc : env.HasType 2 [] liftc liftType := by
     simpa only [liftc, liftType, liftBodyR, liftBodyB, liftBodyF, liftBodyC,
-      liftResult, liftQuot, α, respect, eqApp, rab, fn, β, rel, quotLiftConst] using
+      liftResult, liftQuot, α, respect, eqApp, rab, fn, β, rel, quotLiftConst,
+      VExpr.instL, VLevel.inst, List.map_cons, List.map_nil, List.getD_cons_zero,
+      List.getD_cons_succ] using
       (VEnv.HasType.const (U := 2) (ls := [.param 0, .param 1])
         hLiftDecl (by decide) (by decide))
   have hliftType : env.IsType 2 [] liftType :=
@@ -535,11 +537,11 @@ theorem quotDefEq_valid {κ : ℕ → Cardinal.{u}} {env : VEnv}
   let lmkA : VLevel := .imax lrel lmkR
   let lmkc : VLevel := .imax (.succ (.param 0)) lmkA
   have hmkc : env.HasType 2 Γa mkc quotMkConst.type := by
-    simpa [mkc, quotMkConst] using
+    simpa [mkc, quotMkConst, VExpr.instL, VLevel.inst] using
       (VEnv.HasType.const (U := 2) (Γ := Γa) (ls := [.param 0])
         hMkDecl (by decide) (by decide))
   have hmkcTy : env.HasType 2 Γa quotMkConst.type (.sort lmkc) := by
-    simpa [quotMkConst] using (show env.HasType 2 Γa quotMkConst.type
+    simpa [quotMkConst, VExpr.instL, VLevel.inst] using (show env.HasType 2 Γa quotMkConst.type
         (.sort lmkc) from by
           simp only [quotMkConst, lmkc, lmkA, lmkR, lrel]
           apply VEnv.HasType.forallE

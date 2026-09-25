@@ -172,7 +172,7 @@ theorem quotLiftConstValue_valid {κ : ℕ → Cardinal.{u}} {env : VEnv}
   have hqc : env.HasType 2 Γc qc (quotConst.type.instL [.param 0]) :=
     VEnv.HasType.const (U := 2) hQuotDecl (by decide) (by decide)
   have hqcTy : env.HasType 2 Γc (quotConst.type.instL [.param 0]) (.sort lqc) := by
-    simpa [quotConst] using (show env.HasType 2 Γc
+    simpa [quotConst, VExpr.instL, VLevel.inst] using (show env.HasType 2 Γc
       (.forallE (.sort (.param 0))
         (.forallE (.forallE (.bvar 0) (.forallE (.bvar 1) (.sort .zero)))
           (.sort (.param 0)))) (.sort lqc) from by
@@ -301,7 +301,7 @@ theorem quotLiftConstValue_valid {κ : ℕ → Cardinal.{u}} {env : VEnv}
   have hEqc : env.HasType 2 Γh eqc (eqConst.type.instL [.param 1]) :=
     VEnv.HasType.const (U := 2) hEqDecl (by decide) (by decide)
   have hEqcTy : env.HasType 2 Γh (eqConst.type.instL [.param 1]) (.sort lEqc) := by
-    simpa [eqConst] using (show env.HasType 2 Γh
+    simpa [eqConst, VExpr.instL, VLevel.inst] using (show env.HasType 2 Γh
       (.forallE (.sort (.param 1))
         (.forallE (.bvar 0) (.forallE (.bvar 1) (.sort .zero))))
       (.sort lEqc) from by
