@@ -47,7 +47,7 @@ theorem hasType_liftN_sort_iff {env : VEnv} {U n k : Nat} {Γ Γ' : List VExpr}
     {e : VExpr} {u : VLevel} (henv : env.WF) (hΓ' : OnCtx Γ' (env.IsType U))
     (W : Ctx.LiftN n k Γ Γ') :
     env.HasType U Γ' (e.liftN n k) (.sort u) ↔ env.HasType U Γ e (.sort u) := by
-  simpa using (VEnv.HasType.weakN_iff henv hΓ' W (e := e) (A := .sort u))
+  simpa [VExpr.liftN] using (VEnv.HasType.weakN_iff henv hΓ' W (e := e) (A := .sort u))
 
 theorem strengthen_liftN_typing {env : VEnv} {U n k : Nat} {Γ Γ' : List VExpr}
     {e A' : VExpr} (henv : env.WF) (hΓ' : OnCtx Γ' (env.IsType U))
