@@ -7,12 +7,12 @@ defaultTargets = ["Lean4LeanModel"]
 [[require]]
 name = "mathlib"
 git = "https://github.com/leanprover-community/mathlib4"
-rev = "v4.30.0"
+rev = "v4.33.0-rc2"
 
 [[require]]
 name = "lean4lean"
-git = "https://github.com/digama0/lean4lean"
-rev = "master"
+git = "https://github.com/kim-em/lean4lean"
+rev = "f58aedd2b132728fb5fd4a17a589695b9ebcaa37"
 
 [[lean_lib]]
 name = "Lean4LeanModel"
