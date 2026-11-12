@@ -22,3 +22,4 @@ import Lean4LeanModel.Fundamental
 import Lean4LeanModel.ModelConstructionDebt
 import Lean4LeanModel.ModelConstruction
 import Lean4LeanModel.Consistency
+import Lean4LeanModel.Counterexamples
