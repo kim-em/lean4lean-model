@@ -3,8 +3,8 @@ defaultTargets = ["Lean4LeanModel"]
 
 [[require]]
 name = "lean4lean"
-git = "https://github.com/digama0/lean4lean"
-rev = "master"
+git = "https://github.com/kim-em/lean4lean"
+rev = "b5944782aeec1ccffb041da7ab1331fcc855aef2"
 
 # Mathlib is required last on purpose: where two dependencies pin a shared transitive dependency
 # (batteries) differently, the later require wins, and mathlib's pin is the one that matters --
@@ -13,7 +13,7 @@ rev = "master"
 [[require]]
 name = "mathlib"
 git = "https://github.com/leanprover-community/mathlib4"
-rev = "v4.32.2"
+rev = "v4.33.0-rc2"
 
 [[lean_lib]]
 name = "Lean4LeanModel"
