@@ -163,6 +163,7 @@ theorem model_addQuot_sem {κ : ℕ → Cardinal.{u}} {env env' : VEnv}
   have hfresh₃ := addConst_fresh h₃
   have hfresh₄ := addConst_fresh h₄
   have hext : Assignment.Extends env assignment assignment₄ := by
+    refine ⟨?_, fun _ _ _ => rfl⟩
     intro c ci hc ns
     have hc₁ : c ≠ ``Quot := by
       intro h
@@ -190,7 +191,17 @@ theorem model_addQuot_sem {κ : ℕ → Cardinal.{u}} {env env' : VEnv}
     simp [assignment₄, assignment₃, assignment₂, assignment₁, Assignment.set,
       hc₁, hc₂, hc₃, hc₄]
   change ModelSetup κ (env₄.addDefEq quotDefEq) assignment₄
-  refine ⟨M.cardinals_strictMono, M.cardinals_inaccessible, henv', ?_⟩
+  have hpats : (env₄.addDefEq quotDefEq).pats = env.pats := by
+    change env₄.pats = env.pats
+    rw [VEnv.addConst_pats h₄, VEnv.addConst_pats h₃, VEnv.addConst_pats h₂,
+      VEnv.addConst_pats h₁]
+  have hprojections : (env₄.addDefEq quotDefEq).projections = env.projections := by
+    change env₄.projections = env.projections
+    rw [VEnv.addConst_projections h₄, VEnv.addConst_projections h₃,
+      VEnv.addConst_projections h₂, VEnv.addConst_projections h₁]
+  suffices hWF : assignment₄.WF κ (env₄.addDefEq quotDefEq) from
+    ⟨M.cardinals_strictMono, M.cardinals_inaccessible, henv', hWF,
+      Assignment.RulesWF.extension M hle henv' hpats hprojections hext hWF⟩
   constructor
   · intro c ci ns hc hns
     change env₄.constants c = some ci at hc
@@ -220,7 +231,7 @@ theorem model_addQuot_sem {κ : ℕ → Cardinal.{u}} {env env' : VEnv}
       have hciWF : ci.type.WF env ci.uvars [] := ⟨.sort lvl, hci⟩
       have htypeExt := interp_extension (κ := κ) hle M.envWF henv' hext
         (L := ns) (Γ := []) (γ := []) trivial ci.type (by simpa [hns] using hciWF)
-      rw [hext hc ns]
+      rw [hext.const hc ns]
       exact htypeExt.symm ▸ hOld
   · intro df ns hdf hns
     change df = quotDefEq ∨ env₄.defeqs df at hdf

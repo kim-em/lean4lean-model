@@ -299,6 +299,45 @@ theorem fundamentalStrong {κ : ℕ → Cardinal.{u}} {env : VEnv}
         interp κ env assignment ns [] [] df.rhs :=
       M.assignmentWF.defeq hdf hnslen
     exact ⟨halignL.trans (hglobal.trans halignR.symm), (ihlhs hΓ hγ).mem⟩
+  | @projDF typeName info levels params index sourceMajor fieldType Γ fieldLevel
+      major indexArgs major' hinfo hlevels huvars hparams hindices hfield _
+      hFieldTy hLeft hRight hclosed hguard ihField ihLeft ihRight =>
+    have hFieldTy₀ : env.HasType L.length Γ fieldType (.sort fieldLevel) := hFieldTy.defeq
+    have hLeft₀ := hLeft.defeq
+    have hRight₀ := hRight.defeq
+    have sL := ihLeft hΓ hγ
+    have sR := ihRight hΓ hγ
+    have hproj : env.IsDefEq L.length Γ (.proj typeName index major)
+        (.proj typeName index major') fieldType :=
+      .projDF hinfo hlevels huvars hparams hindices hfield hFieldTy₀ hLeft₀ hRight₀
+        hclosed hguard
+    have heq : interp κ env assignment L Γ γ (.proj typeName index major) =
+        interp κ env assignment L Γ γ (.proj typeName index major') := by
+      simp only [interp_proj, safeTermClass_eq hΓ]
+      rw [termClass_congr M.envWF hΓ hproj hFieldTy₀, ← sL.eq, ← sR.eq]
+    exact ⟨heq, M.rulesWF.proj_mem hinfo hlevels huvars hparams hindices hfield hΓ hγ
+      hFieldTy₀ hLeft₀ hclosed hguard (ihField hΓ hγ).mem sL.eq sL.mem⟩
+  | pat hp hm he hred hr hchk ihe ihred ihchk =>
+    have se := ihe hΓ hγ
+    have sred := ihred hΓ hγ
+    exact ⟨M.rulesWF.pat hp hm hΓ hγ he.defeq hred.defeq hr
+      (fun t ht => (hchk t ht).defeq) (fun t ht => (ihchk t ht hΓ hγ).eq) se.mem sred.mem,
+      se.mem⟩
+  | projIota hinfo hproj hfieldAt hfield ihproj ihfield =>
+    have sproj := ihproj hΓ hγ
+    have sfield := ihfield hΓ hγ
+    exact ⟨M.rulesWF.projIota hinfo hΓ hγ hproj.defeq hfieldAt hfield.defeq
+      sproj.mem sfield.mem, sproj.mem⟩
+  | structEta hinfo hparams hindices he hctor ihe ihctor =>
+    have se := ihe hΓ hγ
+    have sctor := ihctor hΓ hγ
+    exact ⟨M.rulesWF.structEta hinfo hparams hindices hΓ hγ he.defeq hctor.defeq
+      se.mem sctor.mem, sctor.mem⟩
+  | unitLike hinfo hparams hindices hfields he he' ihe ihe' =>
+    have se := ihe hΓ hγ
+    have se' := ihe' hΓ hγ
+    exact ⟨M.rulesWF.unitLike hinfo hparams hindices hfields hΓ hγ he.defeq he'.defeq
+      se.mem se'.mem, se.mem⟩
 
 /-- Fundamental semantic theorem for the public definitional-equality relation. -/
 theorem fundamental {κ : ℕ → Cardinal.{u}} {env : VEnv}
@@ -308,7 +347,7 @@ theorem fundamental {κ : ℕ → Cardinal.{u}} {env : VEnv}
     (hΓ : OnCtx Γ (env.IsType L.length)) {γ : List ZFSet.{u}}
     (hγ : ModelsCtx κ env assignment L Γ γ) :
     SemSound κ env assignment L Γ γ e₁ e₂ A :=
-  fundamentalStrong M (H.strong M.envOrdered hΓ) hΓ hγ
+  fundamentalStrong M (H.strong M.envWF.orderedStrong hΓ) hΓ hγ
 
 theorem SemSound.mem₂ {κ : ℕ → Cardinal.{u}} {env : VEnv}
     {assignment : Assignment.{u}} {L : List Nat} {Γ : List VExpr}

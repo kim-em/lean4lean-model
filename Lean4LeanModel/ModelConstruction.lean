@@ -11,20 +11,11 @@ universe u
 
 namespace Assignment
 
-/-- `assignment'` preserves the meanings of every constant already present in `env`. -/
-def Extends (env : VEnv) (assignment assignment' : Assignment.{u}) : Prop :=
-  ∀ {c ci}, env.constants c = some ci → ∀ ns,
-    assignment'.constVal c ns = assignment.constVal c ns
-
-theorem Extends.rfl (env : VEnv) (assignment : Assignment.{u}) :
-    Extends env assignment assignment := by
-  intro c ci hc ns
-  rfl
-
 /-- Replace the semantic value of one constant name. -/
 noncomputable def set (assignment : Assignment.{u}) (name : Name)
     (value : List Nat → ZFSet.{u}) : Assignment.{u} where
   constVal c ns := if c = name then value ns else assignment.constVal c ns
+  projVal := assignment.projVal
 
 @[simp] theorem set_self (assignment : Assignment.{u}) (name : Name)
     (value : List Nat → ZFSet.{u}) (ns : List Nat) :
@@ -77,16 +68,16 @@ theorem interp_extension {κ : ℕ → Cardinal.{u}} {env env' : VEnv}
   | bvar => rfl
   | sort => rfl
   | const c ls =>
-    obtain ⟨ci, hc, _, _⟩ := he.const_inv henv.ordered hΓ
+    obtain ⟨ci, hc, _, _⟩ := he.const_inv henv.orderedStrong hΓ
     simp only [interp_const]
-    rw [safeTermClass_mono hle henv henv' hΓ he, hassign hc]
+    rw [safeTermClass_mono hle henv henv' hΓ he, hassign.const hc]
   | app f a ihf iha =>
-    obtain ⟨A, B, hf, ha⟩ := he.app_inv henv.ordered hΓ
+    obtain ⟨A, B, hf, ha⟩ := he.app_inv henv.orderedStrong hΓ
     simp only [interp_app]
     rw [safeTermClass_mono hle henv henv' hΓ ⟨_, hf⟩,
       ihf hΓ ⟨_, hf⟩, iha hΓ ⟨_, ha⟩]
   | lam A body ihA ihbody =>
-    obtain ⟨hA, hbody⟩ := he.lam_inv henv.ordered hΓ
+    obtain ⟨hA, hbody⟩ := he.lam_inv henv.orderedStrong hΓ
     have hAwf : A.WF env L.length Γ := by
       obtain ⟨lvl, hA⟩ := hA
       exact ⟨.sort lvl, hA⟩
@@ -111,6 +102,32 @@ theorem interp_extension {κ : ℕ → Cardinal.{u}} {env env' : VEnv}
     apply piValue_congr
     intro x _
     exact ihbody hΓA hbodywf
+  | proj typeName index major ih =>
+    obtain ⟨info, hinfo⟩ := wf_proj_registered henv hΓ he
+    simp only [interp_proj]
+    rw [safeTermClass_mono hle henv henv' hΓ he, ih hΓ (wf_proj_major henv hΓ he),
+      hassign.proj hinfo]
+
+/-- Reassemble the global model data after a constant insertion. The validity of the registered
+rules over the extended environment is `Assignment.RulesWF.extension`. -/
+theorem ModelSetup.of_addConst {κ : ℕ → Cardinal.{u}} {env env' : VEnv}
+    {assignment assignment' : Assignment.{u}} {name : Name} {ci : VConstant}
+    (M : ModelSetup κ env assignment) (hadd : env.addConst name ci = some env')
+    (henv' : env'.WF) (hext : Assignment.Extends env assignment assignment')
+    (hassignment' : assignment'.WF κ env') : ModelSetup κ env' assignment' :=
+  ⟨M.cardinals_strictMono, M.cardinals_inaccessible, henv', hassignment',
+    Assignment.RulesWF.extension M (VEnv.addConst_le hadd) henv' (VEnv.addConst_pats hadd)
+      (VEnv.addConst_projections hadd) hext hassignment'⟩
+
+/-- Reassemble the global model data after registering a definitional equation. -/
+theorem ModelSetup.of_addDefEq {κ : ℕ → Cardinal.{u}} {env : VEnv}
+    {assignment : Assignment.{u}} {df : VDefEq}
+    (M : ModelSetup κ env assignment) (henv' : (env.addDefEq df).WF)
+    (hassignment' : assignment.WF κ (env.addDefEq df)) :
+    ModelSetup κ (env.addDefEq df) assignment :=
+  ⟨M.cardinals_strictMono, M.cardinals_inaccessible, henv', hassignment',
+    Assignment.RulesWF.extension M VEnv.addDefEq_le henv' rfl rfl
+      (Assignment.Extends.rfl _ _) hassignment'⟩
 
 /-- A successful constant insertion starts from a fresh name. -/
 theorem addConst_fresh {env env' : VEnv} {name : Name} {ci : VConstant}
@@ -147,6 +164,7 @@ theorem Assignment.Extends.set_of_addConst {env env' : VEnv} {assignment : Assig
     {name : Name} {ci : VConstant} (value : List Nat → ZFSet.{u})
     (hadd : env.addConst name ci = some env') :
     Assignment.Extends env assignment (assignment.set name value) := by
+  refine ⟨?_, fun _ _ _ => _root_.rfl⟩
   intro c cj hc ns
   apply Assignment.set_other
   intro h
@@ -178,7 +196,7 @@ theorem assignmentWF_addConst_sem {κ : ℕ → Cardinal.{u}} {env env' : VEnv}
       have hciOldWF : cj.type.WF env cj.uvars [] := ⟨.sort lvl, hciOld⟩
       have htypeExt := interp_extension (κ := κ) hle M.envWF henv' hext
         (L := ns) (Γ := []) (γ := []) trivial cj.type (by simpa [hns] using hciOldWF)
-      have hvalEq := hext hcOld ns
+      have hvalEq := hext.const hcOld ns
       exact hvalEq.symm ▸ htypeExt.symm ▸ hOld
   · intro df ns hdf hns
     have hdfOld := addConst_defeq_old hadd hdf
@@ -226,7 +244,7 @@ theorem model_addAxiom {κ : ℕ → Cardinal.{u}} {env env' : VEnv}
     Assignment.Extends.set_of_addConst _ hadd
   obtain ⟨lvl, htype⟩ := hci
   have htypeWF : ci.type.WF env ci.uvars [] := ⟨.sort lvl, htype⟩
-  refine ⟨assignment', M.cardinals_strictMono, M.cardinals_inaccessible, henv', ?_⟩
+  refine ⟨assignment', M.of_addConst hadd henv' hext ?_⟩
   apply assignmentWF_addConst_sem meaning.value M hadd henv'
   intro ns hns
   have htypeExt := interp_extension (κ := κ) hle M.envWF henv' hext
@@ -406,7 +424,9 @@ theorem assignmentWF_addDefEq {κ : ℕ → Cardinal.{u}} {env : VEnv}
 
 /-- Build a semantic assignment along a well-formed declaration history using an abstract axiom
 predicate and handler. Definitions and opaque constants use their stored values; examples do not
-alter the environment. -/
+alter the environment. Quotients, inductive declarations, `mutualDef` blocks and the projection
+stage `VEnv.WF'.inductProjections` go through the boundaries of `ModelConstructionDebt`; the
+last two are false as stated, so this theorem is only meaningful for histories without them. -/
 theorem model_of_wfHistory_withAxioms {κ : ℕ → Cardinal.{u}} {P : VConstVal → Prop}
     (hκ : StrictMono κ) (hi : ∀ n, (κ n).IsInaccessible)
     (handler : AxiomHandler κ P) {ds : List VDecl} {env : VEnv}
@@ -414,7 +434,8 @@ theorem model_of_wfHistory_withAxioms {κ : ℕ → Cardinal.{u}} {P : VConstVal
     ∃ assignment, ModelSetup κ env assignment := by
   induction H with
   | empty =>
-    refine ⟨Assignment.empty, hκ, hi, ⟨[], .empty⟩, ?_⟩
+    refine ⟨Assignment.empty, hκ, hi, ⟨[], .empty⟩, ?_,
+      Assignment.RulesWF.of_no_rules (fun _ _ h => h) (fun _ _ h => h)⟩
     constructor
     · intro c ci ns hc
       simp [VEnv.empty] at hc
@@ -435,7 +456,7 @@ theorem model_of_wfHistory_withAxioms {κ : ℕ → Cardinal.{u}} {P : VConstVal
         simpa [assignment₁] using
           assignmentWF_addConst M hci hadd henv₁
       have M₁ : ModelSetup κ env₁ assignment₁ :=
-        ⟨hκ, hi, henv₁, hassignment₁⟩
+        M.of_addConst hadd henv₁ (Assignment.Extends.set_of_addConst _ hadd) hassignment₁
       have hdfWF : ci.toDefEq.WF env₁ := by
         constructor
         · simp only [VDefVal.toDefEq]
@@ -449,19 +470,29 @@ theorem model_of_wfHistory_withAxioms {κ : ℕ → Cardinal.{u}} {P : VConstVal
         intro ns hns
         simpa [VDefVal.toDefEq, assignment₁] using
           interp_addedConst_eq M hci hadd henv₁ ns hns
-      refine ⟨assignment₁, hκ, hi, henv', ?_⟩
-      exact assignmentWF_addDefEq M₁ hdfWF hsem henv'
+      exact ⟨assignment₁, M₁.of_addDefEq henv' (assignmentWF_addDefEq M₁ hdfWF hsem henv')⟩
     | @«opaque» _ env ci hci hadd =>
       let assignment' := assignment.set ci.name fun ns =>
         interp κ env assignment ns [] [] ci.value
-      refine ⟨assignment', hκ, hi, henv', ?_⟩
+      refine ⟨assignment', M.of_addConst hadd henv'
+        (Assignment.Extends.set_of_addConst _ hadd) ?_⟩
       simpa [assignment'] using assignmentWF_addConst M hci hadd henv'
     | «example» hci =>
-      exact ⟨assignment, hκ, hi, henv', M.assignmentWF⟩
+      exact ⟨assignment, M⟩
+    | mutualDef htypes hadd hvalues =>
+      exact model_mutualDef_boundary M htypes hadd hvalues henv'
     | quot hready hadd =>
       exact model_quotient_boundary M hready hadd henv'
     | induct hdecl hadd =>
       exact model_inductive_boundary M hdecl hadd henv'
+  | @inductProjections baseDecls ds base envTypes envCtors decl block hbase hctorsW hsource
+      htypesWF hconstructorUvars hctorsWF hparams hshape htypesSource hctorsSource
+      hprojections htypes hctors _ ihCtors =>
+    obtain ⟨assignment, M⟩ := ihCtors haxioms
+    exact model_inductProjections_boundary M ⟨_, hbase⟩ hsource htypesWF hconstructorUvars
+      hctorsWF hparams hshape htypesSource hctorsSource hprojections htypes hctors
+      (VEnv.WF.inductProjections ⟨_, hbase⟩ ⟨_, hctorsW⟩ hsource htypesWF hconstructorUvars
+        hctorsWF hparams hshape htypesSource hctorsSource hprojections htypes hctors)
 
 /-- Build a model when every axiom in the history is one of the standard three and semantic
 meanings for those declarations are available. -/
@@ -495,7 +526,7 @@ theorem model_of_wfHistory {κ : ℕ → Cardinal.{u}} (hκ : StrictMono κ)
   · exact fun _ _ => trivial
 
 /-- Every well-formed environment has a semantic assignment, modulo the explicitly isolated
-axiom, quotient, and upstream-inductive boundaries above. -/
+boundaries of `ModelConstructionDebt`. -/
 theorem model_of_wf {κ : ℕ → Cardinal.{u}} (hκ : StrictMono κ)
     (hi : ∀ n, (κ n).IsInaccessible) {env : VEnv} (H : env.WF) :
     ∃ assignment, ModelSetup κ env assignment := by

@@ -75,6 +75,11 @@ theorem interp_liftN {κ : ℕ → Cardinal.{u}} {env : VEnv} {assignment : Assi
     apply piValue_congr
     intro x _
     exact ihbody W.succ (onCtx_succ_lift_iff henv W hctx) (hval.cons x)
+  | proj typeName index major ih =>
+    simp only [VExpr.liftN, interp_proj]
+    have hc := safeTermClass_weakN (e := .proj typeName index major) henv W hctx
+    simp only [VExpr.liftN] at hc
+    rw [hc, ih W hctx hval]
 
 theorem interp_lift {κ : ℕ → Cardinal.{u}} {env : VEnv} {assignment : Assignment.{u}}
     {L : List Nat} {Γ : List VExpr} {γ : List ZFSet.{u}} {A : VExpr} (henv : env.WF)
@@ -224,6 +229,11 @@ theorem interp_instN {κ : ℕ → Cardinal.{u}} {env : VEnv} {assignment : Assi
     apply piValue_congr
     intro x _
     exact ihbody hΓ₁C hΓCi (hval.succ x) hbodywf
+  | proj typeName index major ih =>
+    simp only [VExpr.inst, interp_proj]
+    have hc := safeTermClass_instN henv hΓ₁ hΓ W h₀ he rfl
+    simp only [VExpr.inst] at hc
+    rw [hc, ih hΓ₁ hΓ hval (wf_proj_major henv hΓ₁ he)]
 
 theorem interp_inst {κ : ℕ → Cardinal.{u}} {env : VEnv} {assignment : Assignment.{u}}
     {L : List Nat} {Γ : List VExpr} {γ : List ZFSet.{u}} {a A e : VExpr}
@@ -335,6 +345,11 @@ theorem interp_instL {κ : ℕ → Cardinal.{u}} {env : VEnv} {assignment : Assi
     apply piValue_congr
     intro x _
     exact ihbody hΓA hbodywf
+  | proj typeName index major ih =>
+    simp only [VExpr.instL, interp_proj]
+    have hc := safeTermClass_instL henv hls hΓ he
+    simp only [VExpr.instL] at hc
+    rw [hc, ih hΓ (wf_proj_major henv hΓ he)]
 
 /-- Closed level-polymorphic syntax may be instantiated and then interpreted in any modeled
 context without changing its closed interpretation. -/

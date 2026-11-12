@@ -20,12 +20,12 @@ fi
 
 debt_count=$(grep -cE '^[[:space:]]*sorry[[:space:]]*$' \
   Lean4LeanModel/ModelConstructionDebt.lean || true)
-if [[ "$debt_count" != 3 ]]; then
-  echo "Expected one known-false statement placeholder and two construction boundaries; found $debt_count holes" >&2
+if [[ "$debt_count" != 6 ]]; then
+  echo "Expected three known-false statement placeholders and three construction boundaries (see INDUCTIVES_STATUS.md); found $debt_count holes" >&2
   exit 1
 fi
 
-# Keep reliance on upstream unique typing and its sorried inversion dependency auditable.
+# Keep reliance on upstream unique typing and on the open strengthening theorem auditable.
 mapfile -t boundary_leaks < <(
   grep -RInE --include='*.lean' '\.uniq(U)?([[:space:](]|$)|IsDefEqU\.sort_inv|\.weakN_iff([[:space:](]|$)|\.skips(_iff)?([[:space:](]|$)|OnCtx\.weakN_inv|addInduct_WF|forallE_inv_stratified|sort_forallE_inv' \
     Lean4LeanModel --exclude='Upstream.lean' || true
@@ -40,11 +40,11 @@ fi
 # Pin the complete transitive trust base of the headline theorem. In particular, this records that
 # local and upstream proof debt is still visible as `sorryAx` instead of being hidden by a new axiom.
 expected_axioms="'Lean4LeanModel.consistency' depends on axioms: [propext, sorryAx, Classical.choice, Quot.sound]
-'Lean4LeanModel.quotConstValue_valid' depends on axioms: [propext, sorryAx, Classical.choice, Quot.sound]
-'Lean4LeanModel.quotMkConstValue_valid' depends on axioms: [propext, sorryAx, Classical.choice, Quot.sound]
+'Lean4LeanModel.quotConstValue_valid' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Lean4LeanModel.quotMkConstValue_valid' depends on axioms: [propext, Classical.choice, Quot.sound]
 'Lean4LeanModel.quotRespectsType_eq' depends on axioms: [propext, Classical.choice, Quot.sound]
-'Lean4LeanModel.quotLiftConstValue_valid' depends on axioms: [propext, sorryAx, Classical.choice, Quot.sound]
-'Lean4LeanModel.quotIndConstValue_valid' depends on axioms: [propext, sorryAx, Classical.choice, Quot.sound]
+'Lean4LeanModel.quotLiftConstValue_valid' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Lean4LeanModel.quotIndConstValue_valid' depends on axioms: [propext, Classical.choice, Quot.sound]
 'Lean4LeanModel.quotDefEq_valid' depends on axioms: [propext, sorryAx, Classical.choice, Quot.sound]
 'Lean4LeanModel.model_addQuot_canonical' depends on axioms: [propext, sorryAx, Classical.choice, Quot.sound]"
 actual_axioms=$(lake env lean Lean4LeanModel/TrustAudit.lean 2>&1)

@@ -13,7 +13,8 @@ declarations (`VDecl.WF`), and `VEnv.HasType` is the typing judgment.
 
 The final contradiction is proved from semantic soundness. Local declaration-model placeholders are
 isolated in `ModelConstructionDebt`; the semantic stack also depends on the explicitly audited
-upstream `sorry` theorems described in `Upstream`.
+upstream `sorry` theorem described in `Upstream`. `INDUCTIVES_STATUS.md` at the repository root
+is the inventory.
 -/
 
 namespace Lean4LeanModel
@@ -29,6 +30,8 @@ proves `∀ (p : Prop), p` -- in any number `U` of universe parameters, in the e
 This unrestricted statement is refutable: a well-formed environment may declare an axiom of
 `VExpr.false`. Its axiom-case `sorry` is therefore a known-false statement placeholder, not an
 unfinished proof, while the true statement admitting Lean's standard axioms is being specified.
+It is also refutable without any axiom, by a `mutualDef` block
+(`Lean4LeanModel.wf_mutualDef_proves_false`), and the true statement has to restrict those too.
 -/
 theorem consistency (hlarge : OmegaInaccessibles.{u}) {env : VEnv} (henv : env.WF) (U : Nat) :
     ¬ ∃ e, env.HasType U [] e VExpr.false := by

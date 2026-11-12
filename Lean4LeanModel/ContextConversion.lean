@@ -76,6 +76,9 @@ private theorem interp_eq_of_not_onCtx {κ : ℕ → Cardinal.{u}} {env : VEnv}
     apply depFuns_congr
     intro x _
     exact ihbody h₁' h₂' (x :: γ)
+  | proj typeName index major ih =>
+    simp only [interp_proj]
+    simp [safeTermClass, h₁, h₂, ih h₁ h₂]
 
 /-- Interpretation is invariant under definitional conversion of the local context. -/
 theorem interp_defeqCtx {κ : ℕ → Cardinal.{u}} {env : VEnv}
@@ -131,5 +134,8 @@ theorem interp_defeqCtx {κ : ℕ → Cardinal.{u}} {env : VEnv}
       apply depFuns_congr
       intro x _
       exact interp_eq_of_not_onCtx hn₁ hn₂ _ _
+  | proj typeName index major ih =>
+    simp only [interp_proj]
+    rw [safeTermClass_defeqCtx henv hΓ₀ h, ih hΓ₀ h]
 
 end Lean4LeanModel

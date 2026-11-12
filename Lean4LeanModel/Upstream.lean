@@ -4,8 +4,11 @@ import Lean4Lean.Theory.Typing.Injectivity
 /-!
 # Audited upstream metatheory boundary
 
-The model needs only the zero/nonzero consequence of unique typing. Keeping its derivation here
-makes direct dependence on lean4lean's still-sorried structural typing theorems explicit.
+The model needs only the zero/nonzero consequence of unique typing, and the invariance of typing
+under weakening in both directions. Keeping their derivations here makes the dependence on
+lean4lean's metatheory explicit. At the pinned revision unique typing and sort injectivity are
+proved; context strengthening (`IsDefEqU.weakN_iff`) is the one open proof, and lean4lean's
+`OPEN_PROOFS.md` records that it is not known to be true.
 -/
 
 namespace Lean4LeanModel.Upstream
@@ -37,7 +40,9 @@ theorem termSort_eval_eq {env : VEnv} {U : Nat} {Γ : List VExpr}
     (propSort_eval_eq henv hΓ hAB.hasType.2 hB L)
 
 /-! The following adapters isolate the strengthening theorem currently proved with `sorry`
-upstream.  The model uses it only to show that its raw-syntax classifiers ignore weakening. -/
+upstream (`IsDefEqU.weakN_iff`). The model uses it only to show that its raw-syntax classifiers
+ignore weakening: a lifted term is a proof exactly when the term is, and a lifted context is well
+formed exactly when the context is. -/
 
 theorem ctx_of_liftN {env : VEnv} {U n k : Nat} {Γ Γ' : List VExpr}
     (henv : env.WF) (hΓ' : OnCtx Γ' (env.IsType U)) (W : Ctx.LiftN n k Γ Γ') :

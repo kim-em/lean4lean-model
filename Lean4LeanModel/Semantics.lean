@@ -1,6 +1,7 @@
 import Lean4LeanModel.DependentFunction
 import Lean4LeanModel.Upstream
 import Lean4Lean.Theory.Typing.EnvLemmas
+import Lean4Lean.Theory.Typing.Strong
 import Mathlib.Data.List.GetD
 
 /-!
@@ -136,8 +137,8 @@ theorem typeClass_forallE {env : VEnv} {Γ : List VExpr} {L : List Nat}
   apply propext
   rw [isPropType_iff_of_hasType henv hΓ hAB,
     isPropType_iff_of_hasType henv hΓA hB]
-  change Nat.imax (u.eval L) (v.eval L) = 0 ↔ v.eval L = 0
-  unfold Nat.imax
+  change Lean.Nat.imax (u.eval L) (v.eval L) = 0 ↔ v.eval L = 0
+  unfold Lean.Nat.imax
   split <;> simp_all
 
 /-! These safe-classification consequences are shared by the generated declaration bridges. -/
@@ -332,13 +333,40 @@ theorem termClass_congr {env : VEnv} {Γ : List VExpr} {L : List Nat}
   apply congrArg classLevel
   exact propext (IsProofTerm.congr henv hΓ h hA)
 
-/-- Semantic values assigned to constants at evaluated universe arguments. -/
+/-- The major premise of a well-formed primitive projection is well formed. -/
+theorem wf_proj_major {env : VEnv} {U : Nat} {Γ : List VExpr} {typeName : Name} {index : Nat}
+    {major : VExpr} (henv : env.WF) (hΓ : OnCtx Γ (env.IsType U))
+    (he : (VExpr.proj typeName index major).WF env U Γ) : major.WF env U Γ := by
+  obtain ⟨V, hV⟩ := he
+  obtain ⟨_, _, _, _, _, _, _, _, _, _, _, _, _, _, hmajor, _, _⟩ :=
+    VEnv.HasType.proj_inv henv.orderedStrong hΓ hV
+  exact ⟨_, hmajor.hasType.2⟩
+
+/-- The structure a well-formed primitive projection projects out of is registered. -/
+theorem wf_proj_registered {env : VEnv} {U : Nat} {Γ : List VExpr} {typeName : Name}
+    {index : Nat} {major : VExpr} (henv : env.WF) (hΓ : OnCtx Γ (env.IsType U))
+    (he : (VExpr.proj typeName index major).WF env U Γ) :
+    ∃ info, env.projections typeName info := by
+  obtain ⟨V, hV⟩ := he
+  obtain ⟨info, _, _, _, _, _, _, hinfo, _⟩ :=
+    VEnv.HasType.proj_inv henv.orderedStrong hΓ hV
+  exact ⟨info, hinfo⟩
+
+/-- Semantic values assigned to constants at evaluated universe arguments, and to the primitive
+projections of registered structures.
+
+`projVal S i x` is the `i`-th field of the structure value `x` of the structure named `S`. It takes
+no universe arguments and no parameters: for a data-valued structure the value of the major premise
+determines its fields, and a projection out of a proof is itself a proof (the guard of
+`VEnv.IsDefEq.projDF`), which the interpreter sends to `bullet` without consulting `projVal`. -/
 structure Assignment where
   constVal : Name → List Nat → ZFSet.{u}
+  projVal : Name → Nat → ZFSet.{u} → ZFSet.{u}
 
 /-- The empty/default assignment used when no constants are present. -/
 noncomputable def Assignment.empty : Assignment.{u} where
   constVal _ _ := ∅
+  projVal _ _ _ := ∅
 
 /-- Total structural interpretation of raw expressions. Soundness constrains it only on typed
 expressions and modeled context valuations. -/
@@ -360,6 +388,9 @@ noncomputable def interp (κ : ℕ → Cardinal.{u}) (env : VEnv) (assignment : 
       piValue (safeTypeClass env (A :: Γ) L body)
         (interp κ env assignment L Γ γ A)
         (fun x => interp κ env assignment L (A :: Γ) (x :: γ) body)
+  | .proj typeName index major =>
+      if safeTermClass env Γ L (.proj typeName index major) = 0 then bullet
+      else assignment.projVal typeName index (interp κ env assignment L Γ γ major)
 
 @[simp]
 theorem interp_bvar (κ : ℕ → Cardinal.{u}) (env : VEnv) (assignment : Assignment.{u})
@@ -400,6 +431,14 @@ theorem interp_forallE (κ : ℕ → Cardinal.{u}) (env : VEnv) (assignment : As
       piValue (safeTypeClass env (A :: Γ) L body)
         (interp κ env assignment L Γ γ A)
         (fun x => interp κ env assignment L (A :: Γ) (x :: γ) body) := rfl
+
+@[simp]
+theorem interp_proj (κ : ℕ → Cardinal.{u}) (env : VEnv) (assignment : Assignment.{u})
+    (L : List Nat) (Γ : List VExpr) (γ : List ZFSet.{u}) (typeName : Name) (index : Nat)
+    (major : VExpr) :
+    interp κ env assignment L Γ γ (.proj typeName index major) =
+      if safeTermClass env Γ L (.proj typeName index major) = 0 then bullet
+      else assignment.projVal typeName index (interp κ env assignment L Γ γ major) := rfl
 
 section SanityChecks
 
