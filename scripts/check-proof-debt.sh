@@ -21,7 +21,7 @@ fi
 debt_count=$(grep -cE '^[[:space:]]*sorry[[:space:]]*$' \
   Lean4LeanModel/ModelConstructionDebt.lean || true)
 if [[ "$debt_count" != 6 ]]; then
-  echo "Expected three known-false statement placeholders and three construction boundaries (see INDUCTIVES_STATUS.md); found $debt_count holes" >&2
+  echo "Expected the six boundaries listed in INDUCTIVES_STATUS.md; found $debt_count holes" >&2
   exit 1
 fi
 

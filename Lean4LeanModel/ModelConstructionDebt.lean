@@ -14,7 +14,8 @@ debt everywhere else.
   `model_of_wfHistory_standard` bypasses it via explicit meanings for the standard three. False as
   stated.
 * `model_mutualDef_boundary`: a block of mutually recursive definitions. False as stated.
-* `model_inductive_boundary`: the set-theoretic interpretation of an inductive declaration.
+* `model_inductive_boundary`: the set-theoretic interpretation of an inductive declaration. Needs
+  the hypothesis `decl.isUnsafe = false` to be provable.
 * `model_inductProjections_boundary`: the projection stage of an inductive declaration as its own
   history step. False as stated.
 * `model_quotient_boundary`: the quotient mathematics and exact generated-syntax checks are
@@ -67,7 +68,8 @@ theorem Assignment.RulesWF.extension {κ : ℕ → Cardinal.{u}} {env env' : VEn
 constants of the block already declared, and no termination or productivity condition is imposed
 (the kernel accepts such blocks only for `unsafe` and `partial` definitions). The singleton block
 `f : ∀ (p : Prop), p := f` is well formed over any environment in which `f` is fresh, so the
-resulting environment has a closed term of type `VExpr.false` and no model. A true statement has
+resulting environment has a closed term of type `VExpr.false` and no model
+(`Lean4LeanModel.wf_mutualDef_proves_false`). A true statement has
 to restrict the blocks (for example to the non-recursive ones, which reduce to a sequence of
 `def` steps) or exclude `mutualDef` from the histories the consistency theorem ranges over. -/
 theorem model_mutualDef_boundary {κ : ℕ → Cardinal.{u}} {env env' : VEnv}
@@ -88,10 +90,14 @@ has to supply
 * `Assignment.RulesWF` for `env'`: the ι rule of every recursor rule (`pat`), the four projection
   rules for the new structures, and the rules of `env` over the extended environment.
 
-`decl.WF env` supplies strict positivity and the universe bounds (`formation`), the recursor
-types and rules as the output of the generator (`recsCompiled`), and the typing of each ι rule
-(`rules_wf`). Nested declarations are admitted through a finite expansion into an ordinary
-block (`VInductDecl.FormationWF.nested`). -/
+`decl.WF env` supplies the universe bounds and, for a safe declaration, strict positivity
+(`formation`), the recursor types and rules as the output of the generator (`recsCompiled`), and
+the typing of each ι rule (`rules_wf`). Nested declarations are admitted through a finite
+expansion into an ordinary block (`VInductDecl.FormationWF.nested`).
+
+**Not provable as stated.** `VInductDecl.CtorTailWF.field` asks for positivity of a field only
+when `decl.isUnsafe = false`, so `decl.WF env` admits declarations that are not strictly positive,
+and those have no model. A provable statement assumes `decl.isUnsafe = false`. -/
 theorem model_inductive_boundary {κ : ℕ → Cardinal.{u}} {env env' : VEnv}
     {assignment : Assignment.{u}} {decl : VInductDecl}
     (M : ModelSetup κ env assignment) (hdecl : decl.WF env)
@@ -110,7 +116,7 @@ Counterexample to the statement below: `axiom T : Type` and `axiom mk : (T → P
 model (`T` a singleton), and registering the projection of `T` gives `(mk d).1 ≡ d` for every
 `d : T → Prop` (`projIota`). With `d := fun t => t.1 t → VExpr.false` the proposition
 `d (mk d)` is definitionally equal to `d (mk d) → VExpr.false`, which yields a closed term of type
-`VExpr.false`.
+`VExpr.false`. This is checked: `Lean4LeanModel.wf_inductProjections_proves_false`.
 
 When the type formers and constructors are `opaque` constants (the only possibility in a history
 whose axioms are the standard three), the model built for `envCtors` interprets them by their
