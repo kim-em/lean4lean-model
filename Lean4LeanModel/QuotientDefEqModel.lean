@@ -249,7 +249,7 @@ theorem quotDefEq_valid {κ : ℕ → Cardinal.{u}} {env : VEnv}
       · exact .sort trivial
   have hcRVar : safeTermClass env Γrb [n, m] (.bvar 4) ≠ 0 :=
     safeTermClass_ne_zero_of_hasType henv hΓrb hRVar hRelBTy
-      (by simp [lrel, VLevel.eval, Nat.imax])
+      (by simp [lrel, VLevel.eval, Lean.Nat.imax])
   let rAType : VExpr := .forallE (.bvar 5) (.sort .zero)
   have hRA : env.HasType 2 Γrb ((VExpr.bvar 4).app (.bvar 1)) rAType := by
     simp only [Γrb, rAType, fn, β, rel, α]
@@ -261,7 +261,7 @@ theorem quotDefEq_valid {κ : ℕ → Cardinal.{u}} {env : VEnv}
     · exact .sort trivial
   have hcRA : safeTermClass env Γrb [n, m]
       ((VExpr.bvar 4).app (.bvar 1)) ≠ 0 :=
-    safeTermClass_ne_zero_of_hasType henv hΓrb hRA hRATy (by simp [lra, VLevel.eval, Nat.imax])
+    safeTermClass_ne_zero_of_hasType henv hΓrb hRA hRATy (by simp [lra, VLevel.eval, Lean.Nat.imax])
   let lfn : VLevel := .imax (.param 0) (.param 1)
   let fnH : VExpr := fn.lift.lift.lift.lift
   have hFVar : env.HasType 2 Γrh (.bvar 3) fnH := by
@@ -272,7 +272,7 @@ theorem quotDefEq_valid {κ : ℕ → Cardinal.{u}} {env : VEnv}
     apply VEnv.HasType.forallE <;> type_tac
   have hcFVar : safeTermClass env Γrh [n, m] (.bvar 3) = 0 ↔ m = 0 := by
     rw [safeTermClass_eq_zero_iff_of_hasType (L := [n, m]) henv hΓrh hFVar hFnHTy]
-    cases m <;> simp [lfn, VLevel.eval, Nat.imax]
+    cases m <;> simp [lfn, VLevel.eval, Lean.Nat.imax]
   let eqc : VExpr := .const ``Eq [.param 1]
   let lEqTail : VLevel := .imax (.param 1) (.succ .zero)
   let lEqB : VLevel := .imax (.param 1) lEqTail
@@ -294,7 +294,7 @@ theorem quotDefEq_valid {κ : ℕ → Cardinal.{u}} {env : VEnv}
             · exact .sort trivial)
   have hcEqc : safeTermClass env Γrh [n, m] eqc ≠ 0 :=
     safeTermClass_ne_zero_of_hasType henv hΓrh hEqc hEqcTy
-      (by simp [lEqc, lEqB, lEqTail, VLevel.eval, Nat.imax])
+      (by simp [lEqc, lEqB, lEqTail, VLevel.eval, Lean.Nat.imax])
   let eqB : VExpr := eqc.app (.bvar 4)
   let eqBType : VExpr := .forallE (.bvar 4) (.forallE (.bvar 5) (.sort .zero))
   have hEqB : env.HasType 2 Γrh eqB eqBType := by
@@ -309,7 +309,7 @@ theorem quotDefEq_valid {κ : ℕ → Cardinal.{u}} {env : VEnv}
       · exact .sort trivial
   have hcEqB : safeTermClass env Γrh [n, m] eqB ≠ 0 :=
     safeTermClass_ne_zero_of_hasType henv hΓrh hEqB hEqBTy
-      (by simp [lEqB, lEqTail, VLevel.eval, Nat.imax])
+      (by simp [lEqB, lEqTail, VLevel.eval, Lean.Nat.imax])
   let fa : VExpr := (VExpr.bvar 3).app (.bvar 2)
   let eqBa : VExpr := eqB.app fa
   let eqBaType : VExpr := .forallE (.bvar 4) (.sort .zero)
@@ -323,7 +323,7 @@ theorem quotDefEq_valid {κ : ℕ → Cardinal.{u}} {env : VEnv}
     · exact .sort trivial
   have hcEqBa : safeTermClass env Γrh [n, m] eqBa ≠ 0 :=
     safeTermClass_ne_zero_of_hasType henv hΓrh hEqBa hEqBaTy
-      (by simp [lEqTail, VLevel.eval, Nat.imax])
+      (by simp [lEqTail, VLevel.eval, Lean.Nat.imax])
   have hrespectInterp (A r B f : ZFSet.{u}) :
       interp κ env assignment [n, m] [fn, β, rel, α] [f, B, r, A] respect =
         quotLiftRespectValue assignment m A r B f := by
@@ -560,7 +560,7 @@ theorem quotDefEq_valid {κ : ℕ → Cardinal.{u}} {env : VEnv}
                 · rfl)
   have hcMkc : safeTermClass env Γa [n, m] mkc = 0 ↔ n = 0 := by
     rw [safeTermClass_eq_zero_iff_of_hasType (L := [n, m]) henv hΓa hmkc hmkcTy]
-    simp [lmkc, lmkA, lmkR, lrel, VLevel.eval, Nat.imax]
+    simp [lmkc, lmkA, lmkR, lrel, VLevel.eval, Lean.Nat.imax]
   let mkAType : VExpr := .forallE
     (.forallE (.bvar 5) (.forallE (.bvar 6) (.sort .zero)))
     (.forallE (.bvar 6)
@@ -584,7 +584,7 @@ theorem quotDefEq_valid {κ : ℕ → Cardinal.{u}} {env : VEnv}
         · rfl
   have hcMkA : safeTermClass env Γa [n, m] mkA = 0 ↔ n = 0 := by
     rw [safeTermClass_eq_zero_iff_of_hasType (L := [n, m]) henv hΓa hmkA hmkATy]
-    simp [lmkA, lmkR, lrel, VLevel.eval, Nat.imax]
+    simp [lmkA, lmkR, lrel, VLevel.eval, Lean.Nat.imax]
   let mkRType : VExpr := .forallE (.bvar 5)
     (((VExpr.const ``Quot [.param 0]).app (.bvar 6)).app (.bvar 5))
   have hmkR : env.HasType 2 Γa mkR mkRType := by
@@ -600,7 +600,7 @@ theorem quotDefEq_valid {κ : ℕ → Cardinal.{u}} {env : VEnv}
       · rfl
   have hcMkR : safeTermClass env Γa [n, m] mkR = 0 ↔ n = 0 := by
     rw [safeTermClass_eq_zero_iff_of_hasType (L := [n, m]) henv hΓa hmkR hmkRTy]
-    simp [lmkR, VLevel.eval, Nat.imax]
+    simp [lmkR, VLevel.eval, Lean.Nat.imax]
   let fnFinal : VExpr := fn.lift.lift.lift
   have hFFinal : env.HasType 2 Γa (.bvar 2) fnFinal := by
     simp only [Γa, fnFinal, respect, eqApp, rab, fn, β, rel, α]
@@ -610,7 +610,7 @@ theorem quotDefEq_valid {κ : ℕ → Cardinal.{u}} {env : VEnv}
     apply VEnv.HasType.forallE <;> type_tac
   have hcFFinal : safeTermClass env Γa [n, m] (.bvar 2) = 0 ↔ m = 0 := by
     rw [safeTermClass_eq_zero_iff_of_hasType (L := [n, m]) henv hΓa hFFinal hFnFinalTy]
-    cases m <;> simp [lfn, VLevel.eval, Nat.imax]
+    cases m <;> simp [lfn, VLevel.eval, Lean.Nat.imax]
   change interp κ env assignment [n, m] [] [] (.lam α lhsA) =
     interp κ env assignment [n, m] [] [] (.lam α rhsA)
   apply interp_lam_congr_of_hasType (L := [n, m]) (Γ := []) (γ := []) henv trivial

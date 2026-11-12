@@ -275,7 +275,7 @@ theorem quotMkConstValue_valid {κ : ℕ → Cardinal.{u}} {env : VEnv}
           · exact .sort (by decide))
   have hcQc : safeTermClass env Γa [n] qc ≠ 0 :=
     safeTermClass_ne_zero_of_hasType henv hΓa hqc hqcTy
-      (by simp [lqc, lqA, lrel, VLevel.eval, Nat.imax])
+      (by simp [lqc, lqA, lrel, VLevel.eval, Lean.Nat.imax])
   have hqA : env.HasType 1 Γa qA qAType := by
     simp only [qA, qAType, relA, qc]
     type_tac
@@ -291,7 +291,7 @@ theorem quotMkConstValue_valid {κ : ℕ → Cardinal.{u}} {env : VEnv}
     · exact .sort (by decide)
   have hcQA : safeTermClass env Γa [n] qA ≠ 0 :=
     safeTermClass_ne_zero_of_hasType henv hΓa hqA hqATy
-      (by simp [lqA, lrel, VLevel.eval, Nat.imax])
+      (by simp [lqA, lrel, VLevel.eval, Lean.Nat.imax])
   have hcQ : safeTypeClass env Γa [n] q = 0 ↔ n = 0 := by
     change safeTypeClass env Γa [n] q = 0 ↔ n = 0
     rw [safeTypeClass_eq hΓa,

@@ -1,4 +1,5 @@
 import Lean4Lean.Theory.Typing.UniqueTyping
+import Lean4Lean.Theory.Typing.Injectivity
 
 /-!
 # Audited upstream metatheory boundary

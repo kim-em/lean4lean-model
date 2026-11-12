@@ -184,7 +184,7 @@ theorem interpLevel_append (κ : ℕ → Cardinal.{u}) (ns ms : List Nat)
   | max l₁ l₂ ih₁ ih₂ =>
       exact congrArg₂ Nat.max (ih₁ hl.1) (ih₂ hl.2)
   | imax l₁ l₂ ih₁ ih₂ =>
-      exact congrArg₂ Nat.imax (ih₁ hl.1) (ih₂ hl.2)
+      exact congrArg₂ Lean.Nat.imax (ih₁ hl.1) (ih₂ hl.2)
   | param i =>
       simpa [VLevel.eval] using List.getD_append ns ms 0 i hl
 

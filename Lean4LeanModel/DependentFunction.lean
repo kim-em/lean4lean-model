@@ -373,10 +373,10 @@ theorem piValue_mem_ModelUniverse {κ : ℕ → Cardinal.{u}}
     (hκ : StrictMono κ) (hi : ∀ n, (κ n).IsInaccessible)
     {m n : Nat} {A : ZFSet.{u}} {B : ZFSet.{u} → ZFSet.{u}}
     (hA : A ∈ ModelUniverse κ m) (hB : ∀ a ∈ A, B a ∈ ModelUniverse κ n) :
-    piValue n A B ∈ ModelUniverse κ (Nat.imax m n) := by
+    piValue n A B ∈ ModelUniverse κ (Lean.Nat.imax m n) := by
   cases n with
-  | zero => simpa [piValue, Nat.imax] using forallValue_mem_propUniverse A B
-  | succ n => simpa [piValue, Nat.imax] using depFuns_mem_ModelUniverse hκ hi hA hB
+  | zero => simpa [piValue, Lean.Nat.imax] using forallValue_mem_propUniverse A B
+  | succ n => simpa [piValue, Lean.Nat.imax] using depFuns_mem_ModelUniverse hκ hi hA hB
 
 /-- Universe closure with a dispatcher represented independently from the true universe index. -/
 theorem piValue_mem_ModelUniverse_of_zero_iff {κ : ℕ → Cardinal.{u}}
@@ -384,7 +384,7 @@ theorem piValue_mem_ModelUniverse_of_zero_iff {κ : ℕ → Cardinal.{u}}
     {k m n : Nat} {A : ZFSet.{u}} {B : ZFSet.{u} → ZFSet.{u}}
     (hk : k = 0 ↔ n = 0)
     (hA : A ∈ ModelUniverse κ m) (hB : ∀ a ∈ A, B a ∈ ModelUniverse κ n) :
-    piValue k A B ∈ ModelUniverse κ (Nat.imax m n) := by
+    piValue k A B ∈ ModelUniverse κ (Lean.Nat.imax m n) := by
   rw [piValue_congr_zero hk A B]
   exact piValue_mem_ModelUniverse hκ hi hA hB
 

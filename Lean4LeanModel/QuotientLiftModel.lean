@@ -188,7 +188,7 @@ theorem quotLiftConstValue_valid {κ : ℕ → Cardinal.{u}} {env : VEnv}
           · exact .sort (by decide))
   have hcQc : safeTermClass env Γc [n, m] qc ≠ 0 :=
     safeTermClass_ne_zero_of_hasType henv hΓc hqc hqcTy
-      (by simp [lqc, lqC, lrel, VLevel.eval, Nat.imax])
+      (by simp [lqc, lqC, lrel, VLevel.eval, Lean.Nat.imax])
   have hqC : env.HasType 2 Γc qC qCType := by
     simp only [Γc, qC, qCType, relC, qc, respect, eqApp, rab, fn, β, rel, α]
     type_tac
@@ -203,7 +203,7 @@ theorem quotLiftConstValue_valid {κ : ℕ → Cardinal.{u}} {env : VEnv}
     · exact .sort (by decide)
   have hcQC : safeTermClass env Γc [n, m] qC ≠ 0 :=
     safeTermClass_ne_zero_of_hasType henv hΓc hqC hqCTy
-      (by simp [lqC, lrel, VLevel.eval, Nat.imax])
+      (by simp [lqC, lrel, VLevel.eval, Lean.Nat.imax])
   have hquotInterp (A r B f c : ZFSet.{u})
       (hA : A ∈ ModelUniverse κ n) (hr : r ∈ relationSpace A) :
       interp κ env assignment [n, m] [respect, fn, β, rel, α]
@@ -270,7 +270,7 @@ theorem quotLiftConstValue_valid {κ : ℕ → Cardinal.{u}} {env : VEnv}
       · exact .sort trivial
   have hcRVar : safeTermClass env Γb [n, m] (.bvar 4) ≠ 0 :=
     safeTermClass_ne_zero_of_hasType henv hΓb hRVar hRelBTy
-      (by simp [lrel, VLevel.eval, Nat.imax])
+      (by simp [lrel, VLevel.eval, Lean.Nat.imax])
   let rAType : VExpr := .forallE (.bvar 5) (.sort .zero)
   have hRA : env.HasType 2 Γb ((VExpr.bvar 4).app (.bvar 1)) rAType := by
     simp only [Γb, rAType, fn, β, rel, α]
@@ -282,7 +282,7 @@ theorem quotLiftConstValue_valid {κ : ℕ → Cardinal.{u}} {env : VEnv}
     · exact .sort trivial
   have hcRA : safeTermClass env Γb [n, m]
       ((VExpr.bvar 4).app (.bvar 1)) ≠ 0 :=
-    safeTermClass_ne_zero_of_hasType henv hΓb hRA hRATy (by simp [lra, VLevel.eval, Nat.imax])
+    safeTermClass_ne_zero_of_hasType henv hΓb hRA hRATy (by simp [lra, VLevel.eval, Lean.Nat.imax])
   let lfn : VLevel := .imax (.param 0) (.param 1)
   let fnH : VExpr := fn.lift.lift.lift.lift
   have hFVar : env.HasType 2 Γh (.bvar 3) fnH := by
@@ -293,7 +293,7 @@ theorem quotLiftConstValue_valid {κ : ℕ → Cardinal.{u}} {env : VEnv}
     apply VEnv.HasType.forallE <;> type_tac
   have hcFVar : safeTermClass env Γh [n, m] (.bvar 3) = 0 ↔ m = 0 := by
     rw [safeTermClass_eq_zero_iff_of_hasType (L := [n, m]) henv hΓh hFVar hFnHTy]
-    cases m <;> simp [lfn, VLevel.eval, Nat.imax]
+    cases m <;> simp [lfn, VLevel.eval, Lean.Nat.imax]
   let eqc : VExpr := .const ``Eq [.param 1]
   let lEqTail : VLevel := .imax (.param 1) (.succ .zero)
   let lEqB : VLevel := .imax (.param 1) lEqTail
@@ -315,7 +315,7 @@ theorem quotLiftConstValue_valid {κ : ℕ → Cardinal.{u}} {env : VEnv}
             · exact .sort trivial)
   have hcEqc : safeTermClass env Γh [n, m] eqc ≠ 0 :=
     safeTermClass_ne_zero_of_hasType henv hΓh hEqc hEqcTy
-      (by simp [lEqc, lEqB, lEqTail, VLevel.eval, Nat.imax])
+      (by simp [lEqc, lEqB, lEqTail, VLevel.eval, Lean.Nat.imax])
   let eqB : VExpr := eqc.app (.bvar 4)
   let eqBType : VExpr := .forallE (.bvar 4) (.forallE (.bvar 5) (.sort .zero))
   have hEqB : env.HasType 2 Γh eqB eqBType := by
@@ -330,7 +330,7 @@ theorem quotLiftConstValue_valid {κ : ℕ → Cardinal.{u}} {env : VEnv}
       · exact .sort trivial
   have hcEqB : safeTermClass env Γh [n, m] eqB ≠ 0 :=
     safeTermClass_ne_zero_of_hasType henv hΓh hEqB hEqBTy
-      (by simp [lEqB, lEqTail, VLevel.eval, Nat.imax])
+      (by simp [lEqB, lEqTail, VLevel.eval, Lean.Nat.imax])
   let fa : VExpr := (VExpr.bvar 3).app (.bvar 2)
   let eqBa : VExpr := eqB.app fa
   let eqBaType : VExpr := .forallE (.bvar 4) (.sort .zero)
@@ -344,7 +344,7 @@ theorem quotLiftConstValue_valid {κ : ℕ → Cardinal.{u}} {env : VEnv}
     · exact .sort trivial
   have hcEqBa : safeTermClass env Γh [n, m] eqBa ≠ 0 :=
     safeTermClass_ne_zero_of_hasType henv hΓh hEqBa hEqBaTy
-      (by simp [lEqTail, VLevel.eval, Nat.imax])
+      (by simp [lEqTail, VLevel.eval, Lean.Nat.imax])
   have hrespectInterp (A r B f : ZFSet.{u}) :
       interp κ env assignment [n, m] [fn, β, rel, α] [f, B, r, A] respect =
         quotLiftRespectValue assignment m A r B f := by
