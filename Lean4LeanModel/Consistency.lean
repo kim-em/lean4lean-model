@@ -24,16 +24,20 @@ open Lean4Lean
 universe u
 
 /--
-**Naive consistency statement.** Assuming `ω` inaccessible cardinals, no well-formed environment
-proves `∀ (p : Prop), p` -- in any number `U` of universe parameters, in the empty local context.
+**Naive consistency statement.** Assuming `ω` inaccessible cardinals, no environment with a
+well-formed history free of unsafe inductive declarations proves `∀ (p : Prop), p` -- in any
+number `U` of universe parameters, in the empty local context.
 
-This unrestricted statement is refutable: a well-formed environment may declare an axiom of
-`VExpr.false`. Its axiom-case `sorry` is therefore a known-false statement placeholder, not an
-unfinished proof, while the true statement admitting Lean's standard axioms is being specified.
-It is also refutable without any axiom, by a `mutualDef` block
+This statement is refutable: a well-formed environment may declare an axiom of `VExpr.false`. Its
+axiom-case `sorry` is therefore a known-false statement placeholder, not an unfinished proof,
+while the true statement admitting Lean's standard axioms is being specified. It is also
+refutable without any axiom, by a `mutualDef` block
 (`Lean4LeanModel.wf_mutualDef_proves_false`), and the true statement has to restrict those too.
+The restriction `InductsSafe` is needed for a third reason: a declaration flagged unsafe need
+not be strictly positive (`Lean4LeanModel.wf_unsafe_projectionStage_proves_false`).
 -/
-theorem consistency (hlarge : OmegaInaccessibles.{u}) {env : VEnv} (henv : env.WF) (U : Nat) :
+theorem consistency (hlarge : OmegaInaccessibles.{u}) {env : VEnv}
+    (henv : ∃ ds, VEnv.WF' ds env ∧ InductsSafe ds) (U : Nat) :
     ¬ ∃ e, env.HasType U [] e VExpr.false := by
   obtain ⟨κ, hκ, hi⟩ := hlarge
   obtain ⟨assignment, M⟩ := model_of_wf hκ hi henv

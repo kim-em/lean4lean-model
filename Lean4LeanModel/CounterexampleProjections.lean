@@ -28,7 +28,7 @@ How `cxEnv` can be reached by a well-formed history:
 * For `cxDecl true` (`isUnsafe = true`) formation does not ask for positivity, the prefix
   exists, and `cxEnv` is well formed with history `[.induct (cxDecl true)]`
   (`wf_unsafe_projectionStage_proves_false`). So histories have to exclude unsafe
-  declarations.
+  declarations (`InductsSafe`).
 
 Nothing in the model depends on this module; it records checked facts about the theory.
 -/

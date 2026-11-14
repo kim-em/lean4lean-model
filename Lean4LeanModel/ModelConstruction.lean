@@ -423,17 +423,16 @@ theorem assignmentWF_addDefEq {κ : ℕ → Cardinal.{u}} {env : VEnv}
 /-! ## Declaration-history construction -/
 
 /-- Build a semantic assignment along a well-formed declaration history using an abstract axiom
-predicate and handler. Definitions and
+predicate and handler, when no inductive declaration of the history is unsafe. Definitions and
 opaque constants use their stored values; examples do not alter the environment. Quotients,
 inductive declarations, their constructor-and-projection prefixes
 (`VEnv.WF'.inductProjections`) and `mutualDef` blocks go through the boundaries of
-`ModelConstructionDebt`; the last one is false as stated and the two before it need the
-declaration to be safe, so this theorem is only meaningful for histories without `mutualDef`
-blocks and unsafe inductive declarations. -/
+`ModelConstructionDebt`; the last one is false as stated, so this theorem is only meaningful
+for histories without `mutualDef` blocks. -/
 theorem model_of_wfHistory_withAxioms {κ : ℕ → Cardinal.{u}} {P : VConstVal → Prop}
     (hκ : StrictMono κ) (hi : ∀ n, (κ n).IsInaccessible)
     (handler : AxiomHandler κ P) {ds : List VDecl} {env : VEnv}
-    (H : VEnv.WF' ds env) (haxioms : AxiomsSatisfy P ds) :
+    (H : VEnv.WF' ds env) (haxioms : AxiomsSatisfy P ds) (hsafe : InductsSafe ds) :
     ∃ assignment, ModelSetup κ env assignment := by
   induction H with
   | empty =>
@@ -445,7 +444,7 @@ theorem model_of_wfHistory_withAxioms {κ : ℕ → Cardinal.{u}} {P : VConstVal
     · intro df ns hdf
       exact False.elim hdf
   | @decl d env' ds env hd hds ih =>
-    obtain ⟨assignment, M⟩ := ih haxioms.tail
+    obtain ⟨assignment, M⟩ := ih haxioms.tail hsafe.tail
     have henv' : env'.WF := ⟨d :: ds, .decl hd hds⟩
     cases hd with
     | «axiom» hci hadd =>
@@ -487,10 +486,10 @@ theorem model_of_wfHistory_withAxioms {κ : ℕ → Cardinal.{u}} {P : VConstVal
     | quot hready hadd =>
       exact model_quotient_boundary M hready hadd henv'
     | induct hdecl hadd =>
-      exact model_inductive_boundary M hdecl hadd henv'
+      exact model_inductive_boundary M hdecl hsafe.head hadd henv'
   | @inductProjections env' ds env decl hstage hds ih =>
-    obtain ⟨assignment, M⟩ := ih haxioms.tail
-    exact model_inductProjections_boundary M hstage
+    obtain ⟨assignment, M⟩ := ih haxioms.tail hsafe.tail
+    exact model_inductProjections_boundary M hstage hsafe.head
       (VEnv.WF.inductProjections ⟨ds, hds⟩ hstage)
 
 /-- Build a model when every axiom in the history is one of the standard three and semantic
@@ -499,9 +498,9 @@ theorem model_of_wfHistory_standard {κ : ℕ → Cardinal.{u}}
     (hκ : StrictMono κ) (hi : ∀ n, (κ n).IsInaccessible)
     (handler : StandardAxiom.Handler κ) {ds : List VDecl} {env : VEnv}
     (H : VEnv.WF' ds env) (haxioms : AxiomsSatisfy IsStandardAxiom ds)
-    :
+    (hsafe : InductsSafe ds) :
     ∃ assignment, ModelSetup κ env assignment :=
-  model_of_wfHistory_withAxioms hκ hi handler H haxioms
+  model_of_wfHistory_withAxioms hκ hi handler H haxioms hsafe
 
 /-- Adapter form for any proposed upstream predicate `P`: it is enough to show that `P` permits
 only the canonical standard declarations. -/
@@ -510,27 +509,30 @@ theorem model_of_wfHistory_of_axiomPredicate {κ : ℕ → Cardinal.{u}}
     (handler : StandardAxiom.Handler κ)
     (toStandard : ∀ ci, P ci → IsStandardAxiom ci)
     {ds : List VDecl} {env : VEnv} (H : VEnv.WF' ds env)
-    (haxioms : AxiomsSatisfy P ds) :
+    (haxioms : AxiomsSatisfy P ds) (hsafe : InductsSafe ds) :
     ∃ assignment, ModelSetup κ env assignment :=
-  model_of_wfHistory_standard hκ hi handler H (haxioms.mono toStandard)
+  model_of_wfHistory_standard hκ hi handler H (haxioms.mono toStandard) hsafe
 
-/-- Build a semantic assignment along an unrestricted well-formed declaration history. The false
-arbitrary-axiom case remains isolated in `ModelConstructionDebt`; callers with an allowed-axiom
-condition should use `model_of_wfHistory_withAxioms` instead. -/
+/-- Build a semantic assignment along a well-formed declaration history with arbitrary axioms
+and no unsafe inductive declaration. The false arbitrary-axiom case remains isolated in
+`ModelConstructionDebt`; callers with an allowed-axiom condition should use
+`model_of_wfHistory_withAxioms` instead. -/
 theorem model_of_wfHistory {κ : ℕ → Cardinal.{u}} (hκ : StrictMono κ)
     (hi : ∀ n, (κ n).IsInaccessible) {ds : List VDecl} {env : VEnv}
-    (H : VEnv.WF' ds env) : ∃ assignment, ModelSetup κ env assignment := by
-  refine model_of_wfHistory_withAxioms hκ hi (P := fun _ => True) ?_ H ?_
+    (H : VEnv.WF' ds env) (hsafe : InductsSafe ds) :
+    ∃ assignment, ModelSetup κ env assignment := by
+  refine model_of_wfHistory_withAxioms hκ hi (P := fun _ => True) ?_ H ?_ hsafe
   · intro env env' assignment ci M hci hadd henv' _
     exact model_axiom_boundary M hci hadd henv'
   · exact fun _ _ => trivial
 
-/-- Every well-formed environment has a semantic assignment, modulo the explicitly isolated
-boundaries of `ModelConstructionDebt`. -/
+/-- Every environment with a well-formed history free of unsafe inductive declarations has a
+semantic assignment, modulo the explicitly isolated boundaries of `ModelConstructionDebt`. -/
 theorem model_of_wf {κ : ℕ → Cardinal.{u}} (hκ : StrictMono κ)
-    (hi : ∀ n, (κ n).IsInaccessible) {env : VEnv} (H : env.WF) :
+    (hi : ∀ n, (κ n).IsInaccessible) {env : VEnv}
+    (H : ∃ ds, VEnv.WF' ds env ∧ InductsSafe ds) :
     ∃ assignment, ModelSetup κ env assignment := by
-  obtain ⟨ds, hds⟩ := H
-  exact model_of_wfHistory hκ hi hds
+  obtain ⟨ds, hds, hsafe⟩ := H
+  exact model_of_wfHistory hκ hi hds hsafe
 
 end Lean4LeanModel

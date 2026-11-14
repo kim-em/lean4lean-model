@@ -6,7 +6,8 @@ import Lean4Lean.Theory.VDecl
 
 This module identifies the three axiom declarations supported by Lean's standard metatheory. It
 does not prescribe how an environment should express that no other axioms occur: clients only need
-to map their chosen condition to `AxiomsSatisfy IsStandardAxiom`.
+to map their chosen condition to `AxiomsSatisfy IsStandardAxiom`. It also states the restriction
+on the inductive declarations of a history, `InductsSafe`.
 -/
 
 namespace Lean4LeanModel
@@ -78,5 +79,27 @@ theorem mono {P Q : VConstVal → Prop} {ds : List VDecl}
   exact hpq ci (h ci hci)
 
 end AxiomsSatisfy
+
+/-- No inductive declaration of the history `ds` is flagged unsafe. An entry `.induct decl` of a
+history is a full declaration (`VDecl.WF.induct`) or its constructor-and-projection prefix
+(`VEnv.WF'.inductProjections`), so this covers both. Formation asks for strict positivity only
+of declarations with `isUnsafe = false`. -/
+def InductsSafe (ds : List VDecl) : Prop :=
+  ∀ decl, .induct decl ∈ ds → decl.isUnsafe = false
+
+namespace InductsSafe
+
+theorem nil : InductsSafe [] := by
+  intro decl h
+  simp at h
+
+theorem tail {d : VDecl} {ds : List VDecl} (h : InductsSafe (d :: ds)) : InductsSafe ds :=
+  fun decl hdecl => h decl (List.mem_cons_of_mem d hdecl)
+
+theorem head {decl : VInductDecl} {ds : List VDecl} (h : InductsSafe (.induct decl :: ds)) :
+    decl.isUnsafe = false :=
+  h decl (by simp)
+
+end InductsSafe
 
 end Lean4LeanModel

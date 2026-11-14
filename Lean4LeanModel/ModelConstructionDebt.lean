@@ -14,10 +14,9 @@ debt everywhere else.
   `model_of_wfHistory_standard` bypasses it via explicit meanings for the standard three. False as
   stated.
 * `model_mutualDef_boundary`: a block of mutually recursive definitions. False as stated.
-* `model_inductive_boundary`: the set-theoretic interpretation of an inductive declaration. Needs
-  the hypothesis `decl.isUnsafe = false` to be provable.
-* `model_inductProjections_boundary`: the same for the constructor-and-projection prefix of an
-  inductive declaration, which has no recursors. Needs the same hypothesis.
+* `model_inductive_boundary`: the set-theoretic interpretation of a safe inductive declaration.
+* `model_inductProjections_boundary`: the same for the constructor-and-projection prefix of a safe
+  inductive declaration, which has no recursors.
 * `model_quotient_boundary`: the quotient mathematics and exact generated-syntax checks are
   complete, while the history step still needs the canonical equality invariant.
 -/
@@ -90,15 +89,14 @@ has to supply
 * `Assignment.RulesWF` for `env'`: the ι rule of every recursor rule (`pat`), the three projection
   rules for the new structures, and the rules of `env` over the extended environment.
 
-`decl.WF env` supplies the universe bounds and, for a safe declaration, strict positivity
-(`formation`), and the recursor types and rules as the output of the generator (`recsCompiled`,
-whose compiled block is well formed). Nested declarations are admitted through a finite
-expansion into an ordinary block (`VInductDecl.FormationWF.nested`).
+`decl.WF env` supplies the universe bounds and, because `decl.isUnsafe = false`, strict
+positivity (`formation`), and the recursor types and rules as the output of the generator
+(`recsCompiled`, whose compiled block is well formed). Nested declarations are admitted through
+a finite expansion into an ordinary block (`VInductDecl.FormationWF.nested`).
 
-**Not provable as stated.** `VInductDecl.CtorTailWF.field` asks for positivity of a field only
-when `decl.isUnsafe = false`, and a declaration that is not strictly positive has no model
-(`Lean4LeanModel.wf_unsafe_projectionStage_proves_false`). A provable statement assumes
-`decl.isUnsafe = false`.
+The hypothesis `hsafe` is necessary: `VInductDecl.CtorTailWF.field` asks for positivity of a
+field only when `decl.isUnsafe = false`, and a declaration that is not strictly positive has no
+model (`Lean4LeanModel.wf_unsafe_projectionStage_proves_false`).
 
 For an ordinary declaration the statement is expected to hold for every `M`. For a nested
 declaration the construction needs the containers below to have their canonical
@@ -107,7 +105,7 @@ proved for the models the history induction builds, with the structural invarian
 replaces `Assignment.RulesWF.extension`. -/
 theorem model_inductive_boundary {κ : ℕ → Cardinal.{u}} {env env' : VEnv}
     {assignment : Assignment.{u}} {decl : VInductDecl}
-    (M : ModelSetup κ env assignment) (hdecl : decl.WF env)
+    (M : ModelSetup κ env assignment) (hdecl : decl.WF env) (hsafe : decl.isUnsafe = false)
     (hadd : env.addInduct decl = some env') (henv' : env'.WF) :
     ∃ assignment', ModelSetup κ env' assignment' := by
   sorry
@@ -129,15 +127,14 @@ with nothing to prove about elimination. The type formers and constructors are f
 (`VInductDecl.ProjectionStage.stages`: they are installed by `VEnv.addConstVals`, which fails
 on a declared name), so `M` assigns them no meaning that the projection rules could contradict.
 
-**False as stated**, for the same reason as `model_inductive_boundary`:
+The hypothesis `hsafe` is necessary:
 `Lean4LeanModel.wf_unsafe_projectionStage_proves_false` is a prefix with `isUnsafe = true` over
-the empty environment whose result proves `VExpr.false`. A provable statement assumes
-`decl.isUnsafe = false`. The remark on nested declarations at
+the empty environment whose result proves `VExpr.false`. The remark on nested declarations at
 `model_inductive_boundary` applies here as well. -/
 theorem model_inductProjections_boundary {κ : ℕ → Cardinal.{u}} {env env' : VEnv}
     {assignment : Assignment.{u}} {decl : VInductDecl}
     (M : ModelSetup κ env assignment) (hstage : decl.ProjectionStage env env')
-    (henv' : env'.WF) :
+    (hsafe : decl.isUnsafe = false) (henv' : env'.WF) :
     ∃ assignment', ModelSetup κ env' assignment' := by
   sorry
 
