@@ -12,7 +12,7 @@ lake build
 ```
 
 Everything is pinned at Lean `v4.33.0-rc2`: mathlib `v4.33.0-rc2`, and lean4lean at
-[PR 54](https://github.com/digama0/lean4lean/pull/54) (`kim-em/lean4lean` revision `b5944782`).
+[PR 54](https://github.com/digama0/lean4lean/pull/54) (`kim-em/lean4lean` revision `9d319dc6`).
 `INDUCTIVES_STATUS.md` records what is and is not proved against that theory.
 
 Note that importing lean4lean alongside mathlib requires lean4lean's stdlib prelude

@@ -16,8 +16,8 @@ debt everywhere else.
 * `model_mutualDef_boundary`: a block of mutually recursive definitions. False as stated.
 * `model_inductive_boundary`: the set-theoretic interpretation of an inductive declaration. Needs
   the hypothesis `decl.isUnsafe = false` to be provable.
-* `model_inductProjections_boundary`: the projection stage of an inductive declaration as its own
-  history step. False as stated.
+* `model_inductProjections_boundary`: the same for the constructor-and-projection prefix of an
+  inductive declaration, which has no recursors. Needs the same hypothesis.
 * `model_quotient_boundary`: the quotient mathematics and exact generated-syntax checks are
   complete, while the history step still needs the canonical equality invariant.
 -/
@@ -87,17 +87,24 @@ has to supply
 * values for the type formers, constructors and recursors, members of the interpretations of
   their types (`Assignment.WF.const_mem`);
 * values for the projections of the structures of the block (`Assignment.projVal`);
-* `Assignment.RulesWF` for `env'`: the ι rule of every recursor rule (`pat`), the four projection
+* `Assignment.RulesWF` for `env'`: the ι rule of every recursor rule (`pat`), the three projection
   rules for the new structures, and the rules of `env` over the extended environment.
 
 `decl.WF env` supplies the universe bounds and, for a safe declaration, strict positivity
-(`formation`), the recursor types and rules as the output of the generator (`recsCompiled`), and
-the typing of each ι rule (`rules_wf`). Nested declarations are admitted through a finite
+(`formation`), and the recursor types and rules as the output of the generator (`recsCompiled`,
+whose compiled block is well formed). Nested declarations are admitted through a finite
 expansion into an ordinary block (`VInductDecl.FormationWF.nested`).
 
 **Not provable as stated.** `VInductDecl.CtorTailWF.field` asks for positivity of a field only
-when `decl.isUnsafe = false`, so `decl.WF env` admits declarations that are not strictly positive,
-and those have no model. A provable statement assumes `decl.isUnsafe = false`. -/
+when `decl.isUnsafe = false`, and a declaration that is not strictly positive has no model
+(`Lean4LeanModel.wf_unsafe_projectionStage_proves_false`). A provable statement assumes
+`decl.isUnsafe = false`.
+
+For an ordinary declaration the statement is expected to hold for every `M`. For a nested
+declaration the construction needs the containers below to have their canonical
+interpretation, which `ModelSetup` does not record; there the statement is expected to be
+proved for the models the history induction builds, with the structural invariant that also
+replaces `Assignment.RulesWF.extension`. -/
 theorem model_inductive_boundary {κ : ℕ → Cardinal.{u}} {env env' : VEnv}
     {assignment : Assignment.{u}} {decl : VInductDecl}
     (M : ModelSetup κ env assignment) (hdecl : decl.WF env)
@@ -105,41 +112,33 @@ theorem model_inductive_boundary {κ : ℕ → Cardinal.{u}} {env env' : VEnv}
     ∃ assignment', ModelSetup κ env' assignment' := by
   sorry
 
-/-- **Known-false statement placeholder.** `VEnv.WF'.inductProjections` registers the projection
-entries of `decl` over an environment `envCtors` that is well formed and consists of a well-formed
-`base` plus the type formers and constructors of `decl` as constants. Its premises are the source
-judgment and the raw constructor shapes only: no strict positivity, no universe bound, and nothing
-that makes the type formers and constructors those of an inductive declaration. In a history
-they can only have been declared by `axiom` or `opaque` steps.
+/-- **The model of the constructor-and-projection prefix of an inductive declaration.**
+`VEnv.WF'.inductProjections` extends `env` by the type formers and constructors of `decl`, as
+fresh constants, and by the projection entries of its structures
+(`VInductDecl.ProjectionStage`); `decl` satisfies the source and formation judgments in `env`.
+No recursor and no ι rule is added. The proof has to supply
 
-Counterexample to the statement below: `axiom T : Type` and `axiom mk : (T → Prop) → T` have a
-model (`T` a singleton), and registering the projection of `T` gives `(mk d).1 ≡ d` for every
-`d : T → Prop` (`projIota`). With `d := fun t => t.1 t → VExpr.false` the proposition
-`d (mk d)` is definitionally equal to `d (mk d) → VExpr.false`, which yields a closed term of type
-`VExpr.false`. This is checked: `Lean4LeanModel.wf_inductProjections_proves_false`.
+* values for the type formers and constructors (`Assignment.WF.const_mem`);
+* values for the projections of the structures of the block (`Assignment.projVal`);
+* `Assignment.RulesWF` for `env'`: the three projection rules for the new structures, and the
+  rules of `env` over the extended environment.
 
-When the type formers and constructors are `opaque` constants (the only possibility in a history
-whose axioms are the standard three), the model built for `envCtors` interprets them by their
-stored values, and those values need not validate the projection rules. So even where the
-extended environment has a model, it is not an extension of the one in hand: `assignment'` below
-cannot in general agree with `assignment` on `envCtors`. -/
-theorem model_inductProjections_boundary {κ : ℕ → Cardinal.{u}}
-    {base envTypes envCtors : VEnv} {assignment : Assignment.{u}}
-    {decl : VInductDecl} {block : VInductBlock}
-    (M : ModelSetup κ envCtors assignment) (hbase : base.WF)
-    (hsource : decl.sourceNames.Nodup)
-    (htypesWF : ∀ type ∈ decl.types, type.toVConstant.WF base)
-    (hconstructorUvars : ∀ ctor ∈ decl.constructorConstants, ctor.uvars = decl.uvars)
-    (hctorsWF : ∀ ctor ∈ decl.constructorConstants, ctor.toVConstant.WF envTypes)
-    (hparams : decl.SourceParameterWF base)
-    (hshape : ∀ type ∈ decl.types, ∀ ctor ∈ type.ctors, decl.RawCtorShape type ctor)
-    (htypesSource : block.types = decl.typeConstants)
-    (hctorsSource : block.ctors = decl.constructorConstants)
-    (hprojections : block.projections = decl.projectionEntries)
-    (htypes : base.addConstVals block.types = some envTypes)
-    (hctors : envTypes.addConstVals block.ctors = some envCtors)
-    (henv' : (envCtors.addProjections block.projections).WF) :
-    ∃ assignment', ModelSetup κ (envCtors.addProjections block.projections) assignment' := by
+This is `model_inductive_boundary` without the recursors: the same interpretation of the type
+formers (the least fixed point of the constructors' operator), constructors and projections,
+with nothing to prove about elimination. The type formers and constructors are fresh in `env`
+(`VInductDecl.ProjectionStage.stages`: they are installed by `VEnv.addConstVals`, which fails
+on a declared name), so `M` assigns them no meaning that the projection rules could contradict.
+
+**False as stated**, for the same reason as `model_inductive_boundary`:
+`Lean4LeanModel.wf_unsafe_projectionStage_proves_false` is a prefix with `isUnsafe = true` over
+the empty environment whose result proves `VExpr.false`. A provable statement assumes
+`decl.isUnsafe = false`. The remark on nested declarations at
+`model_inductive_boundary` applies here as well. -/
+theorem model_inductProjections_boundary {κ : ℕ → Cardinal.{u}} {env env' : VEnv}
+    {assignment : Assignment.{u}} {decl : VInductDecl}
+    (M : ModelSetup κ env assignment) (hstage : decl.ProjectionStage env env')
+    (henv' : env'.WF) :
+    ∃ assignment', ModelSetup κ env' assignment' := by
   sorry
 
 /-- The quotient operations, their universe closure, all four exact primitive types, and the

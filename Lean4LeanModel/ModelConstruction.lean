@@ -423,10 +423,13 @@ theorem assignmentWF_addDefEq {κ : ℕ → Cardinal.{u}} {env : VEnv}
 /-! ## Declaration-history construction -/
 
 /-- Build a semantic assignment along a well-formed declaration history using an abstract axiom
-predicate and handler. Definitions and opaque constants use their stored values; examples do not
-alter the environment. Quotients, inductive declarations, `mutualDef` blocks and the projection
-stage `VEnv.WF'.inductProjections` go through the boundaries of `ModelConstructionDebt`; the
-last two are false as stated, so this theorem is only meaningful for histories without them. -/
+predicate and handler. Definitions and
+opaque constants use their stored values; examples do not alter the environment. Quotients,
+inductive declarations, their constructor-and-projection prefixes
+(`VEnv.WF'.inductProjections`) and `mutualDef` blocks go through the boundaries of
+`ModelConstructionDebt`; the last one is false as stated and the two before it need the
+declaration to be safe, so this theorem is only meaningful for histories without `mutualDef`
+blocks and unsafe inductive declarations. -/
 theorem model_of_wfHistory_withAxioms {κ : ℕ → Cardinal.{u}} {P : VConstVal → Prop}
     (hκ : StrictMono κ) (hi : ∀ n, (κ n).IsInaccessible)
     (handler : AxiomHandler κ P) {ds : List VDecl} {env : VEnv}
@@ -485,21 +488,18 @@ theorem model_of_wfHistory_withAxioms {κ : ℕ → Cardinal.{u}} {P : VConstVal
       exact model_quotient_boundary M hready hadd henv'
     | induct hdecl hadd =>
       exact model_inductive_boundary M hdecl hadd henv'
-  | @inductProjections baseDecls ds base envTypes envCtors decl block hbase hctorsW hsource
-      htypesWF hconstructorUvars hctorsWF hparams hshape htypesSource hctorsSource
-      hprojections htypes hctors _ ihCtors =>
-    obtain ⟨assignment, M⟩ := ihCtors haxioms
-    exact model_inductProjections_boundary M ⟨_, hbase⟩ hsource htypesWF hconstructorUvars
-      hctorsWF hparams hshape htypesSource hctorsSource hprojections htypes hctors
-      (VEnv.WF.inductProjections ⟨_, hbase⟩ ⟨_, hctorsW⟩ hsource htypesWF hconstructorUvars
-        hctorsWF hparams hshape htypesSource hctorsSource hprojections htypes hctors)
+  | @inductProjections env' ds env decl hstage hds ih =>
+    obtain ⟨assignment, M⟩ := ih haxioms.tail
+    exact model_inductProjections_boundary M hstage
+      (VEnv.WF.inductProjections ⟨ds, hds⟩ hstage)
 
 /-- Build a model when every axiom in the history is one of the standard three and semantic
 meanings for those declarations are available. -/
 theorem model_of_wfHistory_standard {κ : ℕ → Cardinal.{u}}
     (hκ : StrictMono κ) (hi : ∀ n, (κ n).IsInaccessible)
     (handler : StandardAxiom.Handler κ) {ds : List VDecl} {env : VEnv}
-    (H : VEnv.WF' ds env) (haxioms : AxiomsSatisfy IsStandardAxiom ds) :
+    (H : VEnv.WF' ds env) (haxioms : AxiomsSatisfy IsStandardAxiom ds)
+    :
     ∃ assignment, ModelSetup κ env assignment :=
   model_of_wfHistory_withAxioms hκ hi handler H haxioms
 

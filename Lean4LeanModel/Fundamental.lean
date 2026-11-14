@@ -333,11 +333,6 @@ theorem fundamentalStrong {κ : ℕ → Cardinal.{u}} {env : VEnv}
     have sctor := ihctor hΓ hγ
     exact ⟨M.rulesWF.structEta hinfo hparams hindices hΓ hγ he.defeq hctor.defeq
       se.mem sctor.mem, sctor.mem⟩
-  | unitLike hinfo hparams hindices hfields he he' ihe ihe' =>
-    have se := ihe hΓ hγ
-    have se' := ihe' hΓ hγ
-    exact ⟨M.rulesWF.unitLike hinfo hparams hindices hfields hΓ hγ he.defeq he'.defeq
-      se.mem se'.mem, se.mem⟩
 
 /-- Fundamental semantic theorem for the public definitional-equality relation. -/
 theorem fundamental {κ : ℕ → Cardinal.{u}} {env : VEnv}

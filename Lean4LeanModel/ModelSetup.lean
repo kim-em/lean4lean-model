@@ -27,12 +27,12 @@ structure WF (κ : ℕ → Cardinal.{u}) (env : VEnv) (assignment : Assignment.{
 
 /-- Semantic validity of the registered reduction rules of `env`: the pattern (ι) rules
 `env.pats` read by `VEnv.IsDefEq.pat`, and the projection metadata `env.projections` read by
-`projDF`, `projIota`, `structEta` and `unitLike`.
+`projDF`, `projIota` and `structEta`.
 
 Each field is the semantic content of one typing rule, stated for an arbitrary instance of the
 rule in a modeled context. Its hypotheses are the premises of the rule together with the semantic
 facts the fundamental theorem has in hand for those premises (its induction hypotheses), so the
-five cases of `fundamentalStrong` are applications of the five fields and nothing else.
+four cases of `fundamentalStrong` are applications of the four fields and nothing else.
 
 This structure is an explicit hypothesis, not a theorem: nothing in this development constructs it
 for an environment that has a rule. It is the interface the set-theoretic interpretation of
@@ -115,21 +115,6 @@ structure RulesWF (κ : ℕ → Cardinal.{u}) (env : VEnv) (assignment : Assignm
         (VExpr.mkApps (.const info.ctorName levels)
           (params ++ (List.range info.numFields).map fun index => .proj typeName index e)) =
       interp κ env assignment L Γ γ e
-  /-- Unit-like structures are subsingletons (`VEnv.IsDefEq.unitLike`). -/
-  unitLike : ∀ {L : List Nat} {Γ : List VExpr} {γ : List ZFSet.{u}} {typeName : Name}
-      {info : VProjectionInfo} {levels : List VLevel} {params : List VExpr} {e e' : VExpr},
-    env.projections typeName info →
-    params.length = info.nparams →
-    info.nindices = 0 →
-    info.numFields = 0 →
-    OnCtx Γ (env.IsType L.length) → ModelsCtx κ env assignment L Γ γ →
-    env.HasType L.length Γ e (VExpr.mkApps (.const typeName levels) params) →
-    env.HasType L.length Γ e' (VExpr.mkApps (.const typeName levels) params) →
-    interp κ env assignment L Γ γ e ∈
-      interp κ env assignment L Γ γ (VExpr.mkApps (.const typeName levels) params) →
-    interp κ env assignment L Γ γ e' ∈
-      interp κ env assignment L Γ γ (VExpr.mkApps (.const typeName levels) params) →
-    interp κ env assignment L Γ γ e = interp κ env assignment L Γ γ e'
 
 /-- An environment with no pattern rules and no projection metadata has nothing to validate. -/
 theorem RulesWF.of_no_rules {κ : ℕ → Cardinal.{u}} {env : VEnv} {assignment : Assignment.{u}}
@@ -139,7 +124,6 @@ theorem RulesWF.of_no_rules {κ : ℕ → Cardinal.{u}} {env : VEnv} {assignment
   proj_mem h := (hprojs _ _ h).elim
   projIota h := (hprojs _ _ h).elim
   structEta h := (hprojs _ _ h).elim
-  unitLike h := (hprojs _ _ h).elim
 
 /-- `assignment'` preserves the meanings of every constant already present in `env`, and of
 the projections of every structure already registered in `env`. -/

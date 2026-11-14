@@ -1,18 +1,36 @@
 import Lean4LeanModel.Semantics
-import Lean4Lean.Theory.Typing.Env
+import Lean4Lean.Theory.Typing.ProjectionRigidity
 
 /-!
-# The projection stage of `VEnv.WF'` proves `False` from two axioms
+# The projection entry of a non-positive structure
 
-`VEnv.WF'.inductProjections` registers projection entries for a structure whose type former and
-constructor are already constants of a well-formed environment. Its premises are shape conditions
-only: no strict positivity is required, and the constants need not come from an `induct`
-declaration. So the two axioms `T : Type` and `mk : (T → Prop) → T` can be registered as a
-structure, after which `projIota` gives `(mk d).1 ≡ d`. With `d := fun t => t.1 t → False`,
-`m := mk d` and `P := d m`, this yields `P ≡ (P → False) : Prop`, and the usual self-application
-`(fun h : P => h h) (fun h : P => h h)` is a closed term of type `VExpr.false`.
+Let `T : Type` and `mk : (T → Prop) → T` be constants, and register `T` as a structure with
+constructor `mk` (`cxEnv`). Then `projIota` gives `(mk d).1 ≡ d`, and with
+`d := fun t => t.1 t → False`, `m := mk d` and `P := d m` this yields `P ≡ (P → False) : Prop`,
+so the self-application `(fun h : P => h h) (fun h : P => h h)` is a closed term of type
+`VExpr.false` (`cxEnv_proves_false`).
 
-Nothing in the model depends on this module; it records a checked fact about the theory.
+How `cxEnv` can be reached by a well-formed history:
+
+* Not from the two axioms `T` and `mk`. The projection entries of a well-formed environment are
+  those of the declarations its history lists as `.induct`
+  (`VEnv.WF'.projection_formation`), so a history without such an entry has no projection
+  entry (`not_projections_of_no_induct`, `not_wf_cxEnv_of_no_induct`).
+* Every well-formed history of `cxEnv` lists a declaration `.induct D` that has the entry of `T`
+  and satisfies the source and formation judgments over a well-formed environment below `cxEnv`
+  (`wf_cxEnv_formation`).
+* The type formers and constructors of a constructor-and-projection prefix are fresh in the
+  environment it extends (`projectionStage_sourceNames_fresh`).
+* For the declaration `cxDecl false` (`isUnsafe = false`) over the empty environment, the
+  source judgment and the installation hold, so the constructor-and-projection prefix exists
+  exactly when the formation judgment does (`cxDecl_projectionStage_iff`). Formation asks for
+  strict positivity of the field `T → Prop`. That it fails is not proved here.
+* For `cxDecl true` (`isUnsafe = true`) formation does not ask for positivity, the prefix
+  exists, and `cxEnv` is well formed with history `[.induct (cxDecl true)]`
+  (`wf_unsafe_projectionStage_proves_false`). So histories have to exclude unsafe
+  declarations.
+
+Nothing in the model depends on this module; it records checked facts about the theory.
 -/
 
 namespace Lean4LeanModel
@@ -31,18 +49,19 @@ def cxTypeVal : VConstVal := { name := `T, uvars := 0, type := .sort (.succ .zer
 /-- The axiom `mk : (T → Prop) → T`. -/
 def cxMkVal : VConstVal := { name := `mk, uvars := 0, type := .forallE cxTP cxT }
 
-/-- The non-positive "structure" declaration whose projection entries are registered. -/
-def cxDecl : VInductDecl where
+/-- The family `T` with its one constructor `mk`. -/
+def cxType : VInductiveType :=
+  { name := `T, uvars := 0, type := .sort (.succ .zero), numIndices := 0,
+    resultLevel := .succ .zero, ctors := [cxMkVal] }
+
+/-- The non-positive structure declaration `T` with constructor `mk : (T → Prop) → T` and no
+recursors, with the given `isUnsafe` flag. -/
+def cxDecl (isUnsafe : Bool) : VInductDecl where
   uvars := 0
   nparams := 0
-  isUnsafe := false
+  isUnsafe := isUnsafe
   recs := []
-  types := [{ name := `T, uvars := 0, type := .sort (.succ .zero), numIndices := 0,
-              resultLevel := .succ .zero, ctors := [cxMkVal] }]
-
-/-- The block read off `cxDecl`, without recursors or rules. -/
-def cxBlock : VInductBlock :=
-  ⟨cxDecl.typeConstants, cxDecl.constructorConstants, [], [], cxDecl.projectionEntries⟩
+  types := [cxType]
 
 /-- The projection metadata registered for `T`. -/
 def cxInfo : VProjectionInfo where
@@ -53,18 +72,19 @@ def cxInfo : VProjectionInfo where
   ctorName := `mk
   ctorType := .forallE cxTP cxT
 
-/-- The environment after `axiom T : Type`. -/
+/-- The environment with the constant `T : Type`. -/
 def cxEnvT : VEnv :=
   { VEnv.empty with
     constants := fun n => if `T = n then some cxTypeVal.toVConstant else VEnv.empty.constants n }
 
-/-- The environment after `axiom T : Type` and `axiom mk : (T → Prop) → T`. -/
+/-- The environment with the constants `T : Type` and `mk : (T → Prop) → T`. -/
 def cxEnvCtors : VEnv :=
   { cxEnvT with
     constants := fun n => if `mk = n then some cxMkVal.toVConstant else cxEnvT.constants n }
 
-/-- The environment after the projection stage. -/
-def cxEnv : VEnv := cxEnvCtors.addProjections cxBlock.projections
+/-- `cxEnvCtors` with the projection entry of `T`. The entry does not depend on the `isUnsafe`
+flag. -/
+def cxEnv : VEnv := cxEnvCtors.addProjections (cxDecl false).projectionEntries
 
 /-- `d := fun t : T => t.1 t → False`. -/
 def cxD : VExpr :=
@@ -107,7 +127,7 @@ private theorem constants_mk : cxEnv.constants `mk = some cxMkVal.toVConstant :=
 
 private theorem projections_T : cxEnv.projections `T cxInfo :=
   VEnv.addProjections_iff.2 (.inl ⟨⟨`T, cxInfo⟩, by
-    simp [cxBlock, VInductDecl.projectionEntries, cxDecl, cxInfo, cxMkVal], rfl, rfl⟩)
+    simp [VInductDecl.projectionEntries, cxDecl, cxType, cxInfo, cxMkVal], rfl, rfl⟩)
 
 /-- The first projection of any `major : T` has type `T → Prop`. -/
 private theorem hasType_proj {Γ : List VExpr} {major : VExpr}
@@ -159,70 +179,145 @@ private theorem hasType_omega (Γ : List VExpr) :
     .appDF (.defeqDF (defEq_P _) hvar) hvar
   exact .lamDF (hasType_P Γ) hbody
 
-/-- `ω ω : False` in the environment after the projection stage. -/
+/-- `ω ω : False` in `cxEnv`. This uses the typing rules only, not how `cxEnv` was reached. -/
 theorem cxEnv_proves_false :
     cxEnv.HasType 0 [] (.app cxOmega cxOmega) VExpr.false :=
   .appDF (hasType_omega []) (.defeqDF (.symm (defEq_P [])) (hasType_omega []))
 
-/-- The environment before the projection stage is the one reached by the two axioms `T` and
-`mk` alone, and it is the `envCtors` to which the projection entries are added. -/
-theorem wf_cxEnvCtors :
-    VEnv.WF' [.axiom cxMkVal, .axiom cxTypeVal] cxEnvCtors ∧
-      cxEnv = cxEnvCtors.addProjections cxDecl.projectionEntries := by
-  refine ⟨.decl (.axiom ?_ (rfl : cxEnvT.addConst _ _ = some cxEnvCtors))
-    (.decl (.axiom ?_ (rfl : VEnv.empty.addConst _ _ = some cxEnvT)) .empty), rfl⟩
+/-- The two axioms `T` and `mk` give `cxEnvCtors`, the environment `cxEnv` without its projection
+entry. -/
+theorem wf_cxEnvCtors : VEnv.WF' [.axiom cxMkVal, .axiom cxTypeVal] cxEnvCtors := by
+  refine .decl (.axiom ?_ (rfl : cxEnvT.addConst _ _ = some cxEnvCtors))
+    (.decl (.axiom ?_ (rfl : VEnv.empty.addConst _ _ = some cxEnvT)) .empty)
   · exact ⟨_, .forallEDF (hasType_TP (by simp [cxEnvT]) []) (hasType_T (by simp [cxEnvT]) _)⟩
   · exact ⟨_, .sortDF (by trivial) (by trivial) rfl⟩
 
-/-- The projection stage applies to the two axioms: its premises hold for `cxDecl` over the empty
-base, so `cxEnv` is well formed with the history of `cxEnvCtors`. -/
-theorem wf_cxEnv : VEnv.WF' [.axiom cxMkVal, .axiom cxTypeVal] cxEnv := by
-  have hsort : ∀ env : VEnv,
-      env.HasType 0 [] (.sort (.succ .zero)) (.sort (.succ (.succ .zero))) := fun _ =>
-.sortDF (by trivial) (by trivial) rfl
-  have hmkWF : cxMkVal.toVConstant.WF cxEnvT :=
-    ⟨_, .forallEDF (hasType_TP (by simp [cxEnvT]) []) (hasType_T (by simp [cxEnvT]) _)⟩
-  have hraw : ∀ type ∈ cxDecl.types, ∀ ctor ∈ type.ctors, cxDecl.RawCtorShape type ctor := by
-    intro type htype ctor hctor
-    obtain rfl : type = _ := by simpa [cxDecl] using htype
-    obtain rfl : ctor = cxMkVal := by simpa using hctor
-    refine ⟨[cxTP], cxT, rfl, Nat.zero_le _, ?_, rfl⟩
-    exact ⟨_, List.mem_singleton.2 rfl, .inr rfl, [], rfl, rfl, rfl, rfl⟩
-  refine .inductProjections (base := .empty) (envTypes := cxEnvT) (decl := cxDecl)
-    (block := cxBlock) .empty wf_cxEnvCtors.1 (by simp [VInductDecl.sourceNames,
-      VInductDecl.typeConstants, VInductDecl.constructorConstants, cxDecl, cxMkVal])
-    ?_ ?_ ?_ ?_ hraw rfl rfl rfl rfl rfl
+/-- A well-formed environment whose history lists no inductive declaration has no projection
+entry. -/
+theorem not_projections_of_no_induct {ds : List VDecl} {env : VEnv} (H : VEnv.WF' ds env)
+    (hds : ∀ decl, VDecl.induct decl ∉ ds) (name : Name) (info : VProjectionInfo) :
+    ¬ env.projections name info := by
+  intro hp
+  obtain ⟨D, _, hD, _⟩ := H.projection_formation hp
+  exact hds D hD
+
+/-- No history without an inductive declaration reaches `cxEnv`. In particular the two axioms
+`T` and `mk` do not: `¬ VEnv.WF' [.axiom cxMkVal, .axiom cxTypeVal] cxEnv`. -/
+theorem not_wf_cxEnv_of_no_induct {ds : List VDecl} (hds : ∀ decl, VDecl.induct decl ∉ ds) :
+    ¬ VEnv.WF' ds cxEnv :=
+  fun H => not_projections_of_no_induct H hds _ _ projections_T
+
+theorem not_wf_cxEnv_of_axioms : ¬ VEnv.WF' [.axiom cxMkVal, .axiom cxTypeVal] cxEnv :=
+  not_wf_cxEnv_of_no_induct (by simp)
+
+/-- Every well-formed history of `cxEnv` lists an inductive declaration `D` that registers `T`
+as a structure with constructor `mk : (T → Prop) → T` and satisfies the source and formation
+judgments over a well-formed environment below `cxEnv`. -/
+theorem wf_cxEnv_formation {ds : List VDecl} (H : VEnv.WF' ds cxEnv) :
+    ∃ D base, VDecl.induct D ∈ ds ∧ base.WF ∧ base ≤ cxEnv ∧
+      D.SourceWF base ∧ D.FormationWF base ∧ ⟨`T, cxInfo⟩ ∈ D.projectionEntries := by
+  obtain ⟨D, base, hD, hbase, hle, hsource, hformation, entry, hentry, hname, hinfo⟩ :=
+    H.projection_formation projections_T
+  refine ⟨D, base, hD, hbase, hle, hsource, hformation, ?_⟩
+  obtain ⟨typeName, info⟩ := entry
+  cases hname
+  cases hinfo
+  exact hentry
+
+/-- The type formers and constructors of a constructor-and-projection prefix are not constants
+of the environment it extends. So the prefix never reinterprets an axiom, a definition or an
+opaque constant as a structure. -/
+theorem projectionStage_sourceNames_fresh {env env' : VEnv} {decl : VInductDecl}
+    (h : decl.ProjectionStage env env') :
+    ∀ name ∈ decl.sourceNames, env.constants name = none := by
+  obtain ⟨envTypes, envCtors, htypes, hctors, -⟩ := h.stages
+  intro name hname
+  simp only [VInductDecl.sourceNames, List.mem_append, List.mem_map] at hname
+  rcases hname with ⟨ci, hci, rfl⟩ | ⟨ci, hci, rfl⟩
+  · exact VEnv.addConstVals_names_fresh htypes ci hci
+  · have hfresh := VEnv.addConstVals_names_fresh hctors ci hci
+    cases hc : env.constants ci.name with
+    | none => rfl
+    | some a =>
+      rw [(VEnv.addConstVals_le htypes).constants hc] at hfresh
+      cases hfresh
+
+private theorem hasType_sort (env : VEnv) :
+    env.HasType 0 [] (.sort (.succ .zero)) (.sort (.succ (.succ .zero))) :=
+  .sortDF (by trivial) (by trivial) rfl
+
+private theorem cxMkVal_wf : cxMkVal.toVConstant.WF cxEnvT :=
+  ⟨_, .forallEDF (hasType_TP (by simp [cxEnvT]) []) (hasType_T (by simp [cxEnvT]) _)⟩
+
+private theorem cxDecl_rawCtorShape (b : Bool) :
+    ∀ type ∈ (cxDecl b).types, ∀ ctor ∈ type.ctors, (cxDecl b).RawCtorShape type ctor := by
+  intro type htype ctor hctor
+  obtain rfl : type = cxType := by simpa [cxDecl] using htype
+  obtain rfl : ctor = cxMkVal := by simpa [cxType] using hctor
+  refine ⟨[cxTP], cxT, rfl, Nat.zero_le _, ?_, rfl⟩
+  exact ⟨_, List.mem_singleton.2 rfl, .inr rfl, [], rfl, rfl, rfl, rfl⟩
+
+/-- The source judgment holds for either flag: the header and the constructor type are typed
+and the names are distinct. -/
+theorem cxDecl_sourceWF (b : Bool) : (cxDecl b).SourceWF .empty := by
+  refine ⟨by simp [cxDecl], by simp [VInductDecl.sourceNames, VInductDecl.typeConstants,
+    VInductDecl.constructorConstants, cxDecl, cxType, cxMkVal], ?_, ?_, cxEnvT, cxEnvCtors, rfl,
+    rfl, ?_, ?_⟩
   · intro type htype
-    obtain rfl : type = _ := by simpa [cxDecl] using htype
-    exact ⟨_, hsort _⟩
-  · intro ctor hctor
-    obtain rfl : ctor = cxMkVal := by
-      simpa [VInductDecl.constructorConstants, cxDecl] using hctor
+    obtain rfl : type = cxType := by simpa [cxDecl] using htype
     rfl
   · intro ctor hctor
     obtain rfl : ctor = cxMkVal := by
-      simpa [VInductDecl.constructorConstants, cxDecl] using hctor
-    exact hmkWF
-  · refine ⟨[], cxEnvT, rfl, ?_, ?_, hraw⟩
-    · intro type htype
-      obtain rfl : type = _ := by simpa [cxDecl] using htype
-      exact ⟨.sort (.succ .zero), [], .sort (.succ .zero), [], .sort (.succ .zero), _,
-        hsort _, rfl, rfl, .zero, hsort _⟩
-    · intro type htype ctor hctor
-      obtain rfl : type = _ := by simpa [cxDecl] using htype
-      obtain rfl : ctor = cxMkVal := by simpa using hctor
-      exact ⟨[], _, rfl, .zero⟩
+      simpa [VInductDecl.constructorConstants, cxDecl, cxType] using hctor
+    rfl
+  · intro type htype
+    obtain rfl : type = cxType := by simpa [cxDecl] using htype
+    exact ⟨_, hasType_sort _⟩
+  · intro ctor hctor
+    obtain rfl : ctor = cxMkVal := by
+      simpa [VInductDecl.constructorConstants, cxDecl, cxType] using hctor
+    exact cxMkVal_wf
 
-/-- A well-formed environment whose history consists of exactly the two axioms `T` and `mk` has a
-closed term of type `∀ (p : Prop), p`: the projection stage adds no declaration to the history
-and requires no positivity of the structure it registers. -/
-theorem wf_inductProjections_proves_false :
-    ∃ (ds : List VDecl) (env : VEnv), VEnv.WF' ds env ∧
-      (∀ d ∈ ds, ∃ ci, d = .axiom ci) ∧ ds.length = 2 ∧
-      ∃ e, env.HasType 0 [] e VExpr.false := by
-  refine ⟨_, cxEnv, wf_cxEnv, ?_, rfl, _, cxEnv_proves_false⟩
-  intro d hd
-  simp only [List.mem_cons, List.not_mem_nil, or_false] at hd
-  rcases hd with rfl | rfl <;> exact ⟨_, rfl⟩
+/-- Stages 0 to 2 of `VEnv.addInduct` take the empty environment to `cxEnv`, for either flag. -/
+theorem cxDecl_install (b : Bool) : (cxDecl b).addTypesCtorsProjs .empty = some cxEnv := rfl
+
+/-- For the declaration `T`, `mk : (T → Prop) → T` over the empty environment, the formation
+judgment is the only premise of the constructor-and-projection prefix that is in question. -/
+theorem cxDecl_projectionStage_iff (b : Bool) :
+    (cxDecl b).ProjectionStage .empty cxEnv ↔ (cxDecl b).FormationWF .empty :=
+  ⟨fun h => h.formation, fun h => ⟨cxDecl_sourceWF b, h, cxDecl_install b⟩⟩
+
+/-- With `isUnsafe = true` formation holds: the universe bound is met and positivity of the
+field `T → Prop` is not asked for. -/
+theorem cxDecl_unsafe_formationWF : (cxDecl true).FormationWF .empty := by
+  have hT : cxEnvT.constants `T = some cxTypeVal.toVConstant := by simp [cxEnvT]
+  refine .ordinary ⟨[], .succ .zero, cxEnvT, rfl, ?_, ?_, cxDecl_rawCtorShape true⟩
+  · intro type htype
+    obtain rfl : type = cxType := by simpa [cxDecl] using htype
+    exact ⟨by simp [VLevel.equiv_def, cxType],
+      .sort (.succ .zero), [], .sort (.succ .zero), [], .sort (.succ .zero), _,
+      hasType_sort _, rfl, rfl, .zero, hasType_sort _⟩
+  · intro type htype ctor hctor
+    obtain rfl : type = cxType := by simpa [cxDecl] using htype
+    obtain rfl : ctor = cxMkVal := by simpa [cxType] using hctor
+    refine ⟨⟨[], _, rfl, .zero⟩, .forallE cxTP cxT, [], .forallE cxTP cxT, _, [],
+      .forallEDF (hasType_TP hT []) (hasType_T hT _), rfl, .zero, .zero, ?_⟩
+    refine .field (hasType_TP hT []) (.inr ?_) (.inl rfl) (hasType_TP hT [])
+      (hasType_T hT _) (.result ?_ (hasType_T hT _))
+    · intro ls
+      simp [cxType, VLevel.eval, Lean.Nat.imax]
+    · exact ⟨_, List.mem_singleton.2 rfl, .inr rfl, [], rfl, rfl, rfl, rfl, by simp⟩
+
+/-- An environment whose history is one inductive declaration, flagged unsafe and without
+recursors, is well formed and has a closed term of type `∀ (p : Prop), p`. No axiom is
+declared. The entry is the constructor-and-projection prefix of the declaration
+(`VEnv.WF'.inductProjections`), which does not need the recursors of a non-positive
+declaration to exist. -/
+theorem wf_unsafe_projectionStage_proves_false :
+    ∃ (decl : VInductDecl) (env : VEnv), VEnv.WF' [.induct decl] env ∧ decl.isUnsafe = true ∧
+      ∃ e, env.HasType 0 [] e VExpr.false :=
+  ⟨cxDecl true, cxEnv,
+    .inductProjections ((cxDecl_projectionStage_iff true).2 cxDecl_unsafe_formationWF) .empty,
+    rfl, _, cxEnv_proves_false⟩
 
 end Lean4LeanModel

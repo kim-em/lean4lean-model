@@ -4,7 +4,7 @@ defaultTargets = ["Lean4LeanModel"]
 [[require]]
 name = "lean4lean"
 git = "https://github.com/kim-em/lean4lean"
-rev = "b5944782aeec1ccffb041da7ab1331fcc855aef2"
+rev = "9d319dc6c08715322d379a1990291d04e59d4b5a"
 
 # Mathlib is required last on purpose: where two dependencies pin a shared transitive dependency
 # (batteries) differently, the later require wins, and mathlib's pin is the one that matters --
