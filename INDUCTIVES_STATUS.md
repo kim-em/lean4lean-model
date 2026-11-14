@@ -13,7 +13,7 @@ lean4lean revision.
 
 | | old (`model/quotients`) | now |
 |---|---|---|
-| lean4lean | `digama0/lean4lean` `master`, `779c51fd` | `kim-em/lean4lean` `agent/inductives-on-iota`, `b5944782aeec1ccffb041da7ab1331fcc855aef2` |
+| lean4lean | `digama0/lean4lean` `master`, `779c51fd` | `kim-em/lean4lean` `agent/inductives-on-iota`, `9d319dc6c08715322d379a1990291d04e59d4b5a` |
 | Lean | `v4.32.2` | `v4.33.0-rc2` |
 | Mathlib | `v4.32.2` | `v4.33.0-rc2` (`51e6992e`) |
 | batteries | `023ce7d6` | `76e1c118` |
@@ -24,21 +24,17 @@ downloads nothing that has to be rebuilt).
 
 ## 2. Build status
 
-`lake build` succeeds. `scripts/check-proof-debt.sh` passes (updated for the new counts).
+`lake build` succeeds. `scripts/check-proof-debt.sh` passes.
 
 There are six `sorry`s in this repository, all in `Lean4LeanModel/ModelConstructionDebt.lean`
 (three more than `model/quotients`), and one upstream `sorry` that the model reaches
-(`IsDefEqU.weakN_iff`, `Theory/Typing/UniqueTyping.lean:92`). There is one new explicit hypothesis,
-`Assignment.RulesWF`, a field of `ModelSetup`. Section 5 lists all of them.
+(`IsDefEqU.weakN_iff`, `Theory/Typing/UniqueTyping.lean:92`). There is one explicit hypothesis
+beyond `model/quotients`, `Assignment.RulesWF`, a field of `ModelSetup`. Section 5 lists all of
+them.
 
 `#print axioms` (`Lean4LeanModel/TrustAudit.lean`): `consistency`, `quotDefEq_valid` and
 `model_addQuot_canonical` depend on `sorryAx`. `quotConstValue_valid`, `quotMkConstValue_valid`,
-`quotLiftConstValue_valid` and `quotIndConstValue_valid` no longer do: at the old pin they reached
-upstream `sorry`s that PR 54 has proved (unique typing).
-
-Version drift cost nothing: no proof needed changing for Lean or Mathlib. The only non-theory
-changes are two renames inside lean4lean (`Nat.imax` is now `Lean.Nat.imax`; `IsDefEqU.sort_inv`
-moved to `Theory/Typing/Injectivity.lean`).
+`quotLiftConstValue_valid` and `quotIndConstValue_valid` do not.
 
 ## 3. What changed in the theory that the model consumes
 
@@ -48,7 +44,7 @@ Relative to the old pin `779c51fd`:
 2. `VEnv` has two new components (`Theory/VEnv.lean:12`, `:15`): `pats`, a registry of schematic
    reduction rules keyed by a `Pattern`, and `projections`, the projection metadata of the
    registered structures. `VEnv.LE` compares all four components.
-3. `IsDefEq` (`Theory/Typing/Basic.lean`) has five new rules:
+3. `IsDefEq` (`Theory/Typing/Basic.lean`) has four new rules:
    * `projDF` (`:36`): typing and congruence of a projection. The major premise is typed at
      `S levels (params ++ indexArgs)`; the field type is computed from the constructor type by
      `VProjectionInfo.fieldType`; the guard is
@@ -57,18 +53,37 @@ Relative to the old pin `779c51fd`:
      carries the typing of the redex and of the reduct at a common type.
    * `projIota` (`:84`): `(mk args).i ≡ args[nparams + i]`.
    * `structEta` (`:91`): `mk params (e.0) ... (e.(n-1)) ≡ e`, for a structure with no indices.
-   * `unitLike` (`:102`): any two terms of a structure with no indices and no fields are equal.
-4. `IsDefEqStrong` (`Theory/Typing/Strong.lean`) has the corresponding five rules; `OrderedStrong`
+
+   That any two terms of a structure with no indices and no fields are equal is a theorem
+   (`IsDefEq.unitLike`, `Theory/Typing/UnitLikeConstructor.lean:128`), derived from `structEta`.
+4. `IsDefEqStrong` (`Theory/Typing/Strong.lean`) has the corresponding four rules; `OrderedStrong`
    replaces `Ordered` as the hypothesis of `IsDefEq.strong` and of the inversion lemmas.
 5. `VDecl.WF` (`Theory/Typing/Env.lean`) has a `mutualDef` case (`:27`; this one is already on
    lean4lean `master`), and `induct` (`:43`) is no longer vacuous: `VInductDecl.WF`
-   (`Theory/Inductive.lean:752`) and `VEnv.addInduct` (`Theory/Inductive/AddInduct.lean:90`) are
+   (`Theory/Inductive.lean:711`) and `VEnv.addInduct` (`Theory/Inductive/AddInduct.lean:90`) are
    real definitions. `addInduct` adds the type formers, the constructors, the projection entries of
-   the single-constructor families (`VInductDecl.projectionEntries`,
-   `Theory/DeclarationData.lean:122`), the recursors, and one `pats` entry per recursor rule
-   (`VEnv.addRecRule`, `AddInduct.lean:19`).
-6. `VEnv.WF'` has a second step constructor, `inductProjections` (`Theory/Typing/Env.lean:59`): the
-   projection stage of an inductive declaration as a history step of its own.
+   the single-constructor families (`VInductDecl.projectionEntries`, `Theory/VDecl.lean:83`), the
+   recursors, and one `pats` entry per recursor rule (`VEnv.addRecRule`, `AddInduct.lean:19`).
+   The fields of `VInductDecl.WF` are `formation`, `recsCompiled` and the shape clauses
+   `rec_shape`, `rules_nodup`, `rules_ctor`, `rules_ctorParams`, `rule_shape`. The source
+   judgment and the typing of the recursors are theorems (`VInductDecl.WF.source`, `:749`;
+   `VInductDecl.WF.recs_wf`, `:756`).
+6. `VEnv.WF'` has a second step constructor, `inductProjections` (`Theory/Typing/Env.lean:76`):
+
+   ```
+   decl.ProjectionStage env env' → env.WF' ds → env'.WF' (.induct decl :: ds)
+   ```
+
+   `VInductDecl.ProjectionStage env decl env'` (`:55`) has three fields: `source : decl.SourceWF
+   env`, `formation : decl.FormationWF env` and `install : decl.addTypesCtorsProjs env = some
+   env'`. It is the constructor-and-projection prefix of an inductive declaration: `env'` is `env`
+   with the type formers and constructors of `decl` as fresh constants and the projection entries
+   of its structures, and no recursor or ι rule. The history records it as `.induct decl`, so an
+   entry `.induct decl` of a history is a full declaration or this prefix of one.
+   `VEnv.WF'.projection_formation` (`Theory/Typing/ProjectionRigidity.lean:193`) says that every
+   projection entry of a well-formed environment belongs to a declaration its history lists as
+   `.induct`, which satisfies the source and formation judgments over a well-formed environment
+   below.
 7. Unique typing and sort injectivity are proved. Context strengthening
    (`IsDefEqU.weakN_iff`) is the one open proof of PR 54, and its `OPEN_PROOFS.md` says it is not
    known to be true.
@@ -94,50 +109,66 @@ the quotient part of the model is untouched.
   structural lemmas `interp_liftN`, `interp_instN`, `interp_instL`, `interp_defeqCtx` and
   `interp_extension` get their `proj` cases, proved. They need the inversion
   `HasType.proj_inv` of lean4lean, wrapped as `wf_proj_major` and `wf_proj_registered`.
-* **Rule validity** (`ModelSetup.lean`). `Assignment.RulesWF κ env assignment` has five fields,
+* **Rule validity** (`ModelSetup.lean`). `Assignment.RulesWF κ env assignment` has four fields,
   one per new typing rule. Each field is the semantic content of the rule for an arbitrary
   instance in a modeled context; its hypotheses are the premises of the rule and the semantic
   facts the fundamental theorem holds for those premises. `ModelSetup` gains the field
   `rulesWF`.
-* **Fundamental theorem** (`Fundamental.lean`). `fundamentalStrong` has five new cases and no
+* **Fundamental theorem** (`Fundamental.lean`). `fundamentalStrong` has four new cases and no
   `sorry`. The congruence half of `projDF` is proved outright; the membership half and the other
-  four rules are applications of the five fields of `RulesWF`.
+  three rules are applications of the four fields of `RulesWF`.
 * **History** (`ModelConstruction.lean`). `model_of_wfHistory_withAxioms` gets the `mutualDef`
   case of `VDecl.WF` and the `inductProjections` case of `VEnv.WF'`, each discharged by a boundary
-  in `ModelConstructionDebt.lean`. The `def`, `opaque`, axiom and quotient steps now also have to
-  re-establish `RulesWF` over the extended environment; they do it through
+  in `ModelConstructionDebt.lean`. In the `inductProjections` case the induction hypothesis is a
+  model of the environment the prefix extends. The history theorems take the hypothesis
+  `InductsSafe ds` (`StandardAxioms.lean`): no entry `.induct decl` of the history has
+  `decl.isUnsafe = true`. Because the prefix is recorded as `.induct decl`, this one predicate
+  covers full declarations and prefixes. The `def`, `opaque`, axiom and quotient steps also have
+  to re-establish `RulesWF` over the extended environment; they do it through
   `Assignment.RulesWF.extension`. The empty environment has no rules
   (`Assignment.RulesWF.of_no_rules`).
-* **Two checked counterexamples** (`Counterexamples.lean`, `CounterexampleProjections.lean`):
-  `wf_mutualDef_proves_false` (6.1) and `wf_inductProjections_proves_false` (6.2). Nothing in the
-  model depends on them.
+* **Checked facts about the theory** (`Counterexamples.lean`, `CounterexampleProjections.lean`):
+  `wf_mutualDef_proves_false` (6.1), and for the projection stage (6.2)
+  `not_wf_cxEnv_of_no_induct`, `wf_cxEnv_formation`, `projectionStage_sourceNames_fresh`,
+  `cxDecl_projectionStage_iff` and `wf_unsafe_projectionStage_proves_false`. Nothing in the model
+  depends on them.
 
 ## 5. Debt
 
 ### 5.1 Statement changes
 
-No theorem had its statement edited to make it compile. The following definitions changed, which
-changes the meaning of every statement that mentions them:
+Relative to `model/quotients`. The definitions that changed, which changes the meaning of every
+statement that mentions them:
 
 1. `Assignment` has the new field `projVal`.
 2. `interp` has the new clause for `VExpr.proj`.
 3. `ModelSetup` has the new field `rulesWF : assignment.RulesWF κ env`. This strengthens
    `ModelSetup`, so it strengthens the hypothesis of `fundamental`, `fundamentalStrong` and
    `fundamental_hasType`, and the conclusion of `model_of_wf`, `model_of_wfHistory*`,
-   `model_addAxiom`, `model_addQuot_sem`, `model_addQuot_canonical`, `AxiomHandler` and the three
-   old boundaries. Without it `fundamental` is false at the new theory: a `ModelSetup` in the old
+   `model_addAxiom`, `model_addQuot_sem`, `model_addQuot_canonical`, `AxiomHandler` and the
+   boundaries. Without it `fundamental` is false at this theory: a `ModelSetup` in the old
    sense constrains a recursor only to lie in its type.
 4. `Assignment.Extends` was a `def` (a single universally quantified implication about
    `constVal`) and is now a structure with that field (`const`) and a second one (`proj`:
    `projVal` is preserved on the structures registered in `env`). It moved from
    `ModelConstruction.lean` to `ModelSetup.lean`.
-5. `Nat.imax` in statements of `DependentFunction.lean` and `Universe.lean` is now spelled
+5. `Nat.imax` in statements of `DependentFunction.lean` and `Universe.lean` is spelled
    `Lean.Nat.imax` (lean4lean rename; same function).
-6. Hypotheses of type `env.Ordered` are unchanged, but `fundamental` now obtains
-   `OrderedStrong` from `M.envWF` internally.
+6. Hypotheses of type `env.Ordered` are unchanged, but `fundamental` obtains `OrderedStrong` from
+   `M.envWF` internally.
 
-`consistency` is textually unchanged. It was already refutable (arbitrary axioms); see 6.1 for a
-second refutation.
+The theorems whose statements changed:
+
+7. `model_of_wfHistory_withAxioms`, `model_of_wfHistory_standard`,
+   `model_of_wfHistory_of_axiomPredicate` and `model_of_wfHistory` have the additional hypothesis
+   `hsafe : InductsSafe ds`.
+8. `model_of_wf` takes `∃ ds, VEnv.WF' ds env ∧ InductsSafe ds` in place of `env.WF`.
+9. `consistency` takes `∃ ds, VEnv.WF' ds env ∧ InductsSafe ds` in place of `env.WF`. It is
+   still refutable (arbitrary axioms, and `mutualDef` blocks: 6.1).
+10. `model_inductive_boundary` has the additional hypothesis `hsafe : decl.isUnsafe = false`.
+
+Items 7 to 10 weaken the theorems (they assume more). They are needed for the boundaries of 5.3
+to be true statements: see 6.3.
 
 ### 5.2 The explicit hypothesis `Assignment.RulesWF`
 
@@ -150,9 +181,8 @@ fields are what the interpretation of inductive types has to deliver:
 | `proj_mem` | `projDF` | `⟦e.i⟧ ∈ ⟦fieldType⟧` when `⟦e⟧ ∈ ⟦S levels (params ++ indexArgs)⟧` |
 | `projIota` | `projIota` | `⟦(mk args).i⟧ = ⟦args[nparams + i]⟧` |
 | `structEta` | `structEta` | `⟦mk params (e.0) ... (e.(n-1))⟧ = ⟦e⟧` |
-| `unitLike` | `unitLike` | `⟦S levels params⟧` is a subsingleton when `S` has no fields |
 
-Used in: the five new cases of `fundamentalStrong`, and nowhere else.
+Used in: the four new cases of `fundamentalStrong`, and nowhere else.
 
 Caveat on `pat`. Its hypotheses are exactly what the induction in `fundamentalStrong` provides:
 the typing of the redex and of the reduct, and the membership of their values in the type. They
@@ -165,7 +195,7 @@ typing of the matched arguments (an upstream change). Section 8 takes the first 
 
 ### 5.3 The six `sorry`s (`Lean4LeanModel/ModelConstructionDebt.lean`)
 
-1. **`Assignment.RulesWF.extension`** (new). If `env ≤ env'` registers no new pattern rule and no
+1. **`Assignment.RulesWF.extension`**. If `env ≤ env'` registers no new pattern rule and no
    new projection entry, and `assignment'` extends `assignment`, then `RulesWF` for `env` gives
    `RulesWF` for `env'`.
    Used by: `ModelSetup.of_addConst`, `ModelSetup.of_addDefEq` (so by the `def`, `opaque` and
@@ -176,25 +206,52 @@ typing of the matched arguments (an upstream change). Section 8 takes the first 
    derived from a structural invariant (each installed block interpreted by its canonical
    fixpoint), that invariant is preserved by a rule-free extension by `interp_extension` and the
    instance-wise statement follows in every extension.
-2. **`model_axiom_boundary`** (old). Known false: arbitrary axioms. Only feeds the unrestricted
+2. **`model_axiom_boundary`**. Known false: arbitrary axioms. Only feeds the unrestricted
    `model_of_wfHistory`.
-3. **`model_mutualDef_boundary`** (new). Known false: see 6.1. Used by the `mutualDef` case of
+3. **`model_mutualDef_boundary`**. Known false: see 6.1. Used by the `mutualDef` case of
    `model_of_wfHistory_withAxioms`.
    A true statement restricts the block. A block in which no value mentions a constant of the
    block is a sequence of `opaque` steps followed by `addDefEq`s and can be proved with what is
    there. Nothing weaker than a termination argument works for recursive blocks, and the kernel
    only uses these blocks for `unsafe` and `partial` definitions.
-4. **`model_inductive_boundary`** (old statement, new content). `decl.WF env` and
-   `env.addInduct decl = some env'` give a `ModelSetup` for `env'`. At the old pin this was blocked
-   on upstream `sorry` definitions; now it is the real theorem. Not provable as stated, because
-   `decl.WF` admits `isUnsafe = true` declarations (6.3); with the hypothesis
-   `decl.isUnsafe = false` it is the main theorem of the remaining work. Section 7 says what the
-   proof needs.
-5. **`model_inductProjections_boundary`** (new). Known false in general: see 6.2. Used by the
-   `inductProjections` case of `model_of_wfHistory_withAxioms`.
-6. **`model_quotient_boundary`** (old). Unchanged: needs the canonical meaning of `Eq`
+4. **`model_inductive_boundary`**. `decl.WF env`, `decl.isUnsafe = false` and
+   `env.addInduct decl = some env'` give a `ModelSetup` for `env'`. This is the main theorem of
+   the remaining work. Section 7 says what the proof needs. Expected true for an ordinary
+   declaration and every `ModelSetup` of `env`. For a nested declaration see the remark after
+   item 5.
+5. **`model_inductProjections_boundary`**.
+
+   ```
+   theorem model_inductProjections_boundary
+       (M : ModelSetup κ env assignment) (hstage : decl.ProjectionStage env env')
+       (hsafe : decl.isUnsafe = false) (henv' : env'.WF) :
+       ∃ assignment', ModelSetup κ env' assignment'
+   ```
+
+   Used by the `inductProjections` case of `model_of_wfHistory_withAxioms`. It is item 4 without
+   the recursors: the type formers are the least fixed point of the operator of the
+   constructors, the constructors are tagged tuples, `projVal` is the component map, and
+   `RulesWF` for `env'` consists of the three projection rules for the new structures together
+   with the rules of `env` over the extended environment. Nothing about elimination has to be
+   proved, so this is a strict part of the proof of item 4 and is expected to fall out of it.
+   The type formers and constructors are fresh in `env`
+   (`projectionStage_sourceNames_fresh`), so `M` assigns them nothing that the projection rules
+   could contradict, and `assignment'` can extend `assignment`. The hypothesis `hsafe` is
+   necessary (6.3).
+6. **`model_quotient_boundary`**. Needs the canonical meaning of `Eq`
    (`Assignment.ModelsEq`) as an invariant of the history induction, which the inductive
    construction supplies. `model_addQuot_canonical` is the proved step that consumes it.
+
+Remark on items 4 and 5 for nested declarations. A nested declaration refers to containers
+installed below (`VEnv.InstalledBelow`), and its interpretation is a fixed point of an operator
+built from the containers' interpretations. That operator is monotone when the containers have
+their canonical interpretation. `ModelSetup` does not say they do: `RulesWF` constrains a
+container only on the instances of its rules, so a `ModelSetup` may interpret `List α` by a set
+with elements that are not lists. Items 4 and 5 quantify over every `ModelSetup` of `env`, and
+ask only for some `ModelSetup` of `env'`, so for them to fail there has to be an `env` all of
+whose models are of that kind, which needs an axiom outside the standard three that forces it.
+For the histories of `model_of_wfHistory_standard` I expect both items to be true as stated,
+and to be proved in the form that carries the structural invariant of item 1.
 
 ### 5.4 Upstream
 
@@ -209,8 +266,9 @@ terms through a typing-independent syntactic invariant, or by proving that speci
 
 ## 6. Findings about the PR 54 definitions, from the model's side
 
-The consistency theorem cannot be stated over `VEnv.WF`, even after restricting axioms. Three
-separate features of `VEnv.WF` admit environments without a model.
+The consistency theorem cannot be stated over `VEnv.WF`, even after restricting axioms. Two
+features of `VEnv.WF` admit environments without a model: `mutualDef` blocks (6.1) and unsafe
+inductive declarations (6.3). The projection stage (6.2) is not a third.
 
 ### 6.1 `mutualDef` blocks (`Theory/Typing/Env.lean:27`; already on lean4lean `master`)
 
@@ -220,53 +278,75 @@ there is an environment with history `[.mutualDef [loop]]`, where
 `loop : ∀ (p : Prop), p := loop`, that is `VEnv.WF'` and has a closed term of type `VExpr.false`.
 No axiom is declared.
 
-### 6.2 `VEnv.WF'.inductProjections` (`Theory/Typing/Env.lean:59`; new in PR 54)
+### 6.2 `VEnv.WF'.inductProjections` (`Theory/Typing/Env.lean:76`)
 
-The constructor registers the projection entries of `decl` on top of an environment `envCtors`
-that is itself `WF'` and equals a `WF'` base plus the type formers and constructors of `decl`.
-Its premises are `sourceNames.Nodup`, the typing of the headers and constructor types,
-`SourceParameterWF` and `RawCtorShape` (`Theory/Inductive/SourceShape.lean:144`, `:156`). None of
-them is positivity or a universe bound, and none says the type formers and constructors were
-installed by an inductive declaration. Since `addInduct` always installs recursors as well, in a
-history they can only have been declared by `axiom` or `opaque` steps. So `VEnv.WF` contains
-environments in which an axiomatized type and constructor carry `projIota`, `structEta` and
-`unitLike`.
+The stage is the constructor-and-projection prefix of an inductive declaration (section 3, item
+6). It installs its own type formers and constructors as fresh constants, requires the source
+and formation judgments of the full declaration, and is recorded in the history as
+`.induct decl`. Three consequences, each checked in `CounterexampleProjections.lean`:
 
-Counterexample, proved with no `sorry` as
-`Lean4LeanModel.wf_inductProjections_proves_false`: `axiom T : Type`,
-`axiom mk : (T → Prop) → T`, then the projection stage for the one-family declaration
-`T` with constructor `mk` (`isUnsafe := false`, no recursors). All premises are shape conditions
-that this declaration satisfies. In the resulting environment `projIota` gives `(mk d).0 ≡ d`, and
-with `d := fun t => (t.0 t → ∀ p : Prop, p)` the proposition `P := d (mk d)` satisfies
-`P ≡ (P → ∀ p, p)`, from which `(fun h : P => h h) (fun h : P => h h) : ∀ p : Prop, p`. The
-history of that environment is the two axioms and nothing else.
+* A structure cannot be registered over constants that are already declared.
+  `projectionStage_sourceNames_fresh`: the type formers and constructors of the prefix are not
+  constants of the environment it extends. `not_projections_of_no_induct`: a well-formed
+  environment whose history lists no `.induct` entry has no projection entry (from
+  `VEnv.WF'.projection_formation`).
+* The environment `cxEnv`, which has the constants `T : Type` and `mk : (T → Prop) → T` and the
+  projection entry making `T` a structure with constructor `mk`, proves `VExpr.false`
+  (`cxEnv_proves_false`: `projIota` gives `(mk d).0 ≡ d`, and with
+  `d := fun t => (t.0 t → ∀ p : Prop, p)` the proposition `P := d (mk d)` satisfies
+  `P ≡ (P → ∀ p, p)`). It is not reached by the two axioms `T` and `mk`
+  (`not_wf_cxEnv_of_axioms`), nor by any history without an `.induct` entry
+  (`not_wf_cxEnv_of_no_induct`). Every well-formed history of `cxEnv` lists a declaration that
+  registers `T` with constructor `mk` and satisfies `SourceWF` and `FormationWF` over a
+  well-formed environment below `cxEnv` (`wf_cxEnv_formation`).
+* For the declaration `cxDecl b` (the family `T` with the constructor `mk`, flag
+  `isUnsafe := b`) over the empty environment, the source judgment and the installation hold
+  for both flags, so the prefix exists exactly when `FormationWF` holds
+  (`cxDecl_projectionStage_iff`). The premise in question is the positivity disjunct
+  `decl.isUnsafe = true ∨ decl.Positive env ctx depth dom` of `VInductDecl.CtorTailWF.field`
+  (`Theory/Inductive/Formation.lean:300`) for the field `dom ≡ T → Prop`. With `b = true` it
+  holds and `cxEnv` is well formed (6.3).
 
-This one costs lean4lean nothing (arbitrary axioms already make `VEnv.WF` environments
-inconsistent) but it matters here in two ways:
+Not proved: `¬ (cxDecl false).FormationWF .empty`, that is, that the safe declaration is
+rejected. `Positive` is positivity up to definitional equality
+(`VInductDecl.Positive.unfold`, `Formation.lean:210`), so a proof has to show, in the environment
+with the one constant `T`, that no term in which `T` does not occur is definitionally equal to
+`T` or to `T → Prop`, that `T → Prop` is not definitionally equal to an application of `T`, and
+that the nested alternative `VInductDecl.FormationWF.nested` (`Theory/Inductive.lean:366`) does
+not apply over an environment with no installed container. The first of these is a
+conservativity statement about the judgment, not a shape inversion: it needs confluence or a
+model. It can be obtained from this repository's own model (interpret `T` once by `∅` and once
+by `{∅}`; a term without `T` has the same value under both, `T` and `T → Prop` do not), which
+needs a lemma that `interp` depends only on the constants occurring in the term, and inherits
+the dependence on `weakN_iff`.
 
-* the standard-axioms theorem `model_of_wfHistory_standard` restricts axioms, and the projection
-  stage adds nothing to the history list, so the restriction does not see it. With only standard
-  axioms the type former and constructor must be `opaque`, and an opaque type has no closed
-  inhabitants, so I do not have a refutation in that case; but
-* the model interprets an `opaque` constant by its stored value, and a later projection stage
-  then demands that this value behave like a free structure. `opaque T : Type := Prop` and
-  `opaque mk : (∀ X : Type, X) → T := fun h => h T`, followed by the projection stage, need
-  `⟦T⟧ = ∅` (the field type is empty and `proj_mem` maps `⟦T⟧` into it), while the model built for
-  the history so far has `⟦T⟧ = ⟦Prop⟧`. So the model of the extended environment is not an
-  extension of the model in hand, and the history induction as structured cannot do this step.
+So the statement "no safe history reaches `cxEnv`" rests on that unproved fact. What is proved
+is that every history reaching `cxEnv` contains a formed inductive declaration with this
+constructor, and that for the declaration over the empty environment the only way to form it is
+`FormationWF`.
 
-The cleanest resolution is for the target theorem to range over histories that do not use
-`inductProjections` (section 8, step 0). An inductive declaration does not need it:
-`VDecl.WF.induct` installs the projections itself.
+For the model this means two things. The restriction on histories sees the stage: it is an
+`.induct` entry, so `InductsSafe` applies to it. And the stage does not ask a constant that
+already has a value (an axiom, or an `opaque` constant interpreted by its stored value) to
+behave like a free structure: its constants are fresh, the induction hypothesis is a model of
+the environment below them, and their values are chosen by the step.
 
-### 6.3 `isUnsafe` declarations (`Theory/Inductive/Formation.lean:300`; new in PR 54)
+### 6.3 `isUnsafe` declarations (`Theory/Inductive/Formation.lean:300`)
 
 `VInductDecl.CtorTailWF.field` requires `decl.isUnsafe = true ∨ decl.Positive env ctx depth dom`.
-`VInductDecl.WF` does not require `isUnsafe = false`, and `VDecl.WF.induct` takes any
-`decl.WF env`. So non-positive declarations flagged unsafe are well-formed history steps. A nested
-declaration may use an unsafe container only if it is itself unsafe
-(`Theory/Inductive/Compilation.lean:73`), so safety is hereditary and the restriction
-`isUnsafe = false` on the declarations of a history is enough.
+Neither `VInductDecl.WF` nor `VInductDecl.ProjectionStage` requires `isUnsafe = false`. So
+declarations that are not strictly positive are well-formed history steps when flagged unsafe.
+
+`Lean4LeanModel.wf_unsafe_projectionStage_proves_false` proves, with no `sorry`: there is a
+declaration `decl` with `decl.isUnsafe = true` and an environment with history `[.induct decl]`
+that is `VEnv.WF'` and has a closed term of type `VExpr.false`. The declaration is
+`cxDecl true` and the environment is `cxEnv`; the step is the constructor-and-projection
+prefix, so the example needs no recursor for the non-positive declaration. No axiom is declared.
+
+This costs lean4lean nothing (the kernel accepts such declarations only as `unsafe`), but a
+consistency statement has to exclude them. A nested declaration may use an unsafe container only
+if it is itself unsafe (`Theory/Inductive/Compilation.lean:73`), so safety is hereditary and the
+restriction `InductsSafe` on the entries of a history is enough.
 
 ### 6.4 Points that are awkward but not wrong
 
@@ -275,16 +355,16 @@ declaration may use an unsafe container only if it is itself unsafe
   recursor's parameters only by the typing of the redex. Constructor values in the model must
   therefore not record their parameters. The same holds for the auxiliary recursors of nested
   blocks, whose rules fire on the constructors of a container (`VInductDecl.WF.rules_ctorParams`).
-* K-like reduction is not registered (`AddInduct.lean:19`, docstring). `structEta` and `unitLike`
-  are the only η-style rules.
+* K-like reduction is not registered (`AddInduct.lean:19`, docstring). `structEta` is the only
+  η-style rule; equality of the terms of a structure without fields follows from it.
 * `projDF` allows projections out of single-constructor families with indices
-  (`indexArgs`); `structEta` and `unitLike` require `nindices = 0`. The kernel only projects out
+  (`indexArgs`); `structEta` requires `nindices = 0`. The kernel only projects out
   of index-free structures. Harmless for a set model.
 * The projection guard `(info.resultLevel.inst levels).IsNeverZero ∨ fieldLevel ≈ .zero` is
   exactly what a proof-irrelevant model needs: data is only projected out of data.
 * The recursor's elimination universe (`Instance.Admissible.elimination`,
-  `Theory/Inductive/Signature.lean:114`): never-`Prop` families, or motive in `Prop`, or singleton
-  elimination (`SingletonElimination`, `:86`: at most one constructor, every field a proof or
+  `Theory/Inductive/Signature.lean:102`): never-`Prop` families, or motive in `Prop`, or singleton
+  elimination (`SingletonElimination`, `:69`: at most one constructor, every field a proof or
   among the indices) with a free target universe. This matches section 2.6 of the thesis.
 * Families whose sort is sometimes `Prop` (`Sort u`) are admitted with the field-level bound
   `target.resultLevel ≈ .zero ∨ fieldLevel ≤ target.resultLevel` (`Formation.lean:299`). The model
@@ -333,9 +413,8 @@ restoration).
    equation of that recursion, and the typing of the recursor value (`const_mem`) is an induction
    over the fixed point.
 4. *Projections.* `projVal S i x` is the `i`-th component of the tuple. `projIota` is the
-   component equation, `structEta` is surjective pairing for a one-constructor family, `unitLike`
-   is the fact that a one-constructor family with no fields is `{⟨tag⟩}`, and `proj_mem` is the
-   typing of components (by induction along `VProjectionInfo.fieldType`, which substitutes earlier
+   component equation, `structEta` is surjective pairing for a one-constructor family, and
+   `proj_mem` is the typing of components (by induction along `VProjectionInfo.fieldType`, which substitutes earlier
    projections for earlier fields).
 5. *`Prop`-valued families.* Interpret the family twice: the data fixed point `I♯` as above, and
    `⟦I p i⟧ = {•}` if `I♯ p i` is nonempty, `∅` otherwise. Constructors are `•`. A recursor into
@@ -368,10 +447,10 @@ restoration).
 ## 8. Proposed order of attack
 
 0. **Fix the target.** Define the histories the theorem ranges over: axioms among the standard
-   three, no `mutualDef` (or only non-recursive blocks), `induct` only with `isUnsafe = false`, no
-   `inductProjections`. Either as a predicate on a separate inductive `SafeWF'` in this repository
-   with a map to `VEnv.WF'`, or upstream. State `consistency` for it. This removes the three
-   false boundaries (items 2, 3, 5 of 5.3) and makes item 4 provable.
+   three, no `mutualDef` (or only non-recursive blocks), `induct` entries only with
+   `isUnsafe = false`. The first and the last are the hypotheses `AxiomsSatisfy IsStandardAxiom`
+   and `InductsSafe` of `model_of_wfHistory_standard`; the restriction on `mutualDef` is missing.
+   State `consistency` for it. This removes the two false boundaries (items 2, 3 of 5.3).
 1. **Strengthen the motive of `fundamentalStrong`** so that it carries semantic typing along
    application spines (5.2, caveat). Check on paper that `symm`, `trans` and `defeqDF` preserve the
    stronger motive before building on it.
@@ -379,7 +458,8 @@ restoration).
    on families of sets with a rank bound and universe closure; the `∈`-recursion combinator and
    its unfolding equation.
 3. **One non-indexed, non-recursive data structure** end to end (for example `Prod`): type former,
-   constructor, recursor, ι, and the four projection rules. This fixes the shape of the
+   constructor, recursor, ι, and the three projection rules. The part without the recursor is
+   `model_inductProjections_boundary` for that declaration. This fixes the shape of the
    structural invariant that replaces `RulesWF` and removes `RulesWF.extension` (item 1 of 5.3).
 4. **Signatures**: parameters, indices, recursive and reflexive fields, mutual blocks, for
    never-`Prop` families. `Nat`, `List`, `Eq`-shaped families in `Type`, `W`.
@@ -392,17 +472,15 @@ restoration).
 ## 9. Verified and inferred
 
 Verified by Lean in this branch: the build; the `sorry` count and locations; the `#print axioms`
-output; the proofs of the `proj` cases of the transport lemmas and of the five new cases of
-`fundamentalStrong` from `RulesWF`; `wf_mutualDef_proves_false` (6.1);
-`wf_inductProjections_proves_false` (6.2), whose axioms are `propext`, `Classical.choice` and
-`Quot.sound`.
+output; the proofs of the `proj` cases of the transport lemmas and of the four new cases of
+`fundamentalStrong` from `RulesWF`; `wf_mutualDef_proves_false` (6.1); the theorems of
+`CounterexampleProjections.lean` named in 6.2 and 6.3, whose axioms are `propext`,
+`Classical.choice` and `Quot.sound`.
 
-Verified by reading the definitions at `b5944782`, not by Lean: the `opaque` example of 6.2 (that
-its two declarations and the projection stage are well formed); that `VInductDecl.WF` admits
-`isUnsafe = true` (6.3; I did not construct a non-positive unsafe declaration together with its
-compiled recursors, so "admits" means that no clause of `WF` mentions positivity in that case);
-the items of 6.4.
+Verified by reading the definitions at `9d319dc6`, not by Lean: that a nested declaration with an
+unsafe container is itself unsafe (6.3); the items of 6.4.
 
-Inferred: that `RulesWF.extension` is true for the extensions it is used on; that the standard-axiom
-restriction leaves no refutation through `inductProjections`; the feasibility of section 7, which
-is a plan and not a proof; the description of the thesis in section 7, written from memory.
+Inferred: that `(cxDecl false).FormationWF .empty` is false (6.2); that `RulesWF.extension` is
+true for the extensions it is used on; that items 4 and 5 of 5.3 are true, including the
+discussion of nested declarations there; the feasibility of section 7, which is a plan and not a
+proof; the description of the thesis in section 7, written from memory.
